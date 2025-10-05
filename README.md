@@ -36,5 +36,5 @@ poetry shell
 
 ### 4. Run application
 ```
-python app.py
+❯ python wyzion_mem0_ai_demo/app/main.py 
 ```
