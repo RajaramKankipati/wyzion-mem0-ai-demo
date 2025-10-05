@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Financial AI Chatbot</title>
+<style>
+    body { font-family: Arial, sans-serif; background-color: #f9f9f9; margin:0; padding:0; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    h2 { text-align: center; }
+    #chat { background: white; border-radius: 8px; padding: 20px; height: 500px; overflow-y: scroll; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .message { margin: 10px 0; padding: 10px; border-radius: 8px; max-width: 70%; }
+    .user { background-color: #d1e7ff; align-self: flex-end; text-align: right; margin-left: auto; }
+    .ai { background-color: #e2ffd8; align-self: flex-start; text-align: left; margin-right: auto; }
+    #inputSection { display: flex; margin-top: 10px; }
+    #question { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    button { padding: 10px 15px; margin-left: 5px; border: none; border-radius: 8px; background-color: #007bff; color: white; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    .chat-wrapper { display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>Financial AI Chatbot</h2>
+    <div id="chat" class="chat-wrapper"></div>
+
+    <div id="inputSection">
+        <input type="text" id="question" placeholder="Type your message...">
+        <button onclick="sendText()">Send</button>
+        <button id="recordBtn">🎤 Record</button>
+        <button onclick="checkMission()">📊 Check Mission</button>
+    </div>
+    
+</div>
+
+<script>
+let mediaRecorder;
+let audioChunks = [];
+let recording = false;
+
+function appendMessage(sender, text, id) {
+    const chat = document.getElementById('chat');
+    const div = document.createElement('div');
+    div.className = "message " + sender;
+    if (id) div.id = id;
+    div.innerHTML = text;  // allow HTML formatting
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function updateMessage(id, text) {
+    const div = document.getElementById(id);
+    if (div) {
+        div.innerHTML = text;
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function checkMission() {
+    const processingId = "mission_" + Date.now();
+    appendMessage('ai processing', "📊 Analyzing conversation for mission...", processingId);
+
+    try {
+        const res = await fetch('/classify_mission', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!res.ok) {
+            updateMessage(processingId, `<em style="color:red">Error fetching mission</em>`);
+            return;
+        }
+
+        const data = await res.json();
+
+        updateMessage(processingId,
+            `<b>Mission:</b> ${escapeHtml(data.mission_id)}<br>
+             <b>Stage:</b> ${escapeHtml(data.stage)}<br>
+             <b>Why:</b> ${escapeHtml(data.explanation)}`
+        );
+
+    } catch (err) {
+        updateMessage(processingId, `<em style="color:red">Error: ${escapeHtml(err.message)}</em>`);
+    }
+}
+
+
+async function sendText() {
+    const question = document.getElementById('question').value;
+    if (!question) return;
+    appendMessage('user', "You: " + question);
+    document.getElementById('question').value = '';
+
+    const res = await fetch('/ask_text', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question})
+    });
+    const data = await res.json();
+    appendMessage('ai', "Assistant: " + data.answer);
+    playTTS(data.answer);
+}
+
+async function sendAudioBlob(blob) {
+    const formData = new FormData();
+    formData.append('audio', blob, 'voice_input.wav');
+    appendMessage('ai processing', "Processing Speech...");
+    const res = await fetch('/upload_audio', { method: 'POST', body: formData });
+    const data = await res.json();
+    appendMessage('user', "You (voice): " + data.transcript);
+    appendMessage('ai', "Assistant: " + data.answer);
+
+    // Play AI TTS
+    // playAudioFile(data.speech_file);
+}
+
+function playAudioFile(url) {
+    const audio = new Audio('/download/' + url.split('/').pop());
+    audio.play();
+}
+
+async function playTTS(text) {
+    const res = await fetch('/upload_audio', { 
+        method: 'POST', 
+        body: new FormData(Object.assign(new FormData(), { audio: new Blob([new TextEncoder().encode(text)], {type:'text/plain'}) }))
+    });
+    // fallback: skip TTS if not available
+}
+
+// Voice recording
+document.getElementById('recordBtn').addEventListener('click', async () => {
+    if (!recording) {
+        // Start recording
+        if (!navigator.mediaDevices) return alert("MediaDevices API not supported");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = e => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            sendAudioBlob(audioBlob);
+        };
+        mediaRecorder.start();
+        recording = true;
+        document.getElementById('recordBtn').innerText = '⏹️ Stop';
+    } else {
+        mediaRecorder.stop();
+        recording = false;
+        document.getElementById('recordBtn').innerText = '🎤 Record';
+    }
+});
+</script>
+</body>
+</html>

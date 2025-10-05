@@ -1,0 +1,23 @@
+<!-- templates/login.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <style>
+    body { font-family: Arial; background:#f0f2f5; }
+    .box { max-width:420px; margin:80px auto; padding:20px; background:#fff; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+    input { width:100%; padding:10px; margin:8px 0; border-radius:6px; border:1px solid #ccc; }
+    button { width:100%; padding:10px; border:none; border-radius:6px; background:#007bff; color:#fff; font-size:16px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Login / Register</h2>
+    <form action="/login" method="post">
+      <input name="username" placeholder="Your name" required />
+      <button type="submit">Continue</button>
+    </form>
+  </div>
+</body>
+</html>

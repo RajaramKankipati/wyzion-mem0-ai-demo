@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "wyzion-mem0-ai-demo"
+version = "0.1.0"
+description = ""
+authors = ["kankipati_raja <raja.ram757@gmail.com>"]
+packages = [{ include = "wyzion_mem0_ai_demo" }]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.1.2"
+mem0ai = "^0.1.118"
+pandas = "^2.3.3"
+uvicorn = {extras = ["standard"], version = "^0.37.0"}
+python-multipart = "^0.0.20"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.9.0"
+isort = "^6.1.0"
+flake8 = "^6.1.0"
+mypy = "^1.18.2"
+pre-commit = "^4.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    .venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+
+[tool.poetry.scripts]
+check = "tools.check:run"
+
