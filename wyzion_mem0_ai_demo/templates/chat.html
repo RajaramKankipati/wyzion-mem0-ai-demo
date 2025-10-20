@@ -2,157 +2,744 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Financial AI Chatbot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Credit Union AI Assistant</title>
 <style>
-    body { font-family: Arial, sans-serif; background-color: #f9f9f9; margin:0; padding:0; }
-    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-    h2 { text-align: center; }
-    #chat { background: white; border-radius: 8px; padding: 20px; height: 500px; overflow-y: scroll; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .message { margin: 10px 0; padding: 10px; border-radius: 8px; max-width: 70%; }
-    .user { background-color: #d1e7ff; align-self: flex-end; text-align: right; margin-left: auto; }
-    .ai { background-color: #e2ffd8; align-self: flex-start; text-align: left; margin-right: auto; }
-    #inputSection { display: flex; margin-top: 10px; }
-    #question { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
-    button { padding: 10px 15px; margin-left: 5px; border: none; border-radius: 8px; background-color: #007bff; color: white; cursor: pointer; }
-    button:hover { background-color: #0056b3; }
-    .chat-wrapper { display: flex; flex-direction: column; }
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .main-container {
+        display: grid;
+        grid-template-columns: 300px 1fr 350px;
+        gap: 20px;
+        height: 100vh;
+        padding: 20px;
+        max-width: 1800px;
+        margin: 0 auto;
+    }
+
+    .panel {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .panel-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .panel-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    /* Left Panel - Intent Tracking */
+    #user-info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    #user-info-card .user-name {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    #user-info-card .user-id {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-bottom: 15px;
+    }
+
+    #user-info-card .user-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    #user-info-card .user-detail-item {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 10px;
+        border-radius: 6px;
+        text-align: center;
+    }
+
+    #user-info-card .user-detail-label {
+        font-size: 11px;
+        opacity: 0.9;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    #user-info-card .user-detail-value {
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    #intent-panel .mission-card {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+    }
+
+    #intent-panel .mission-title {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 8px;
+        font-size: 16px;
+    }
+
+    #intent-panel .stage {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        margin-bottom: 10px;
+    }
+
+    #intent-panel .stage-list {
+        list-style: none;
+        margin-top: 10px;
+    }
+
+    #intent-panel .stage-list li {
+        padding: 8px;
+        margin: 5px 0;
+        background: #e9ecef;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+
+    #intent-panel .stage-list li.active {
+        background: #667eea;
+        color: white;
+        font-weight: bold;
+    }
+
+    .loading {
+        text-align: center;
+        color: #999;
+        padding: 20px;
+        font-style: italic;
+    }
+
+    /* Member Selector */
+    .member-selector {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .member-selector label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    #member-select {
+        flex: 1;
+        padding: 8px 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+        background: white;
+    }
+
+    #member-select:focus {
+        border-color: #667eea;
+    }
+
+    /* Center Panel - Chat */
+    #chat-panel {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .message {
+        max-width: 70%;
+        padding: 12px 18px;
+        border-radius: 18px;
+        line-height: 1.5;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+        background: #667eea;
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message.ai {
+        background: #f1f3f5;
+        color: #333;
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message.processing {
+        background: #fff3cd;
+        color: #856404;
+        align-self: center;
+        font-style: italic;
+    }
+
+    .message-label {
+        font-size: 11px;
+        opacity: 0.8;
+        margin-bottom: 4px;
+    }
+
+    #input-section {
+        padding: 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        gap: 10px;
+    }
+
+    #question-input {
+        flex: 1;
+        padding: 12px 18px;
+        border: 2px solid #e9ecef;
+        border-radius: 24px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+
+    #question-input:focus {
+        border-color: #667eea;
+    }
+
+    button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 24px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        color: white;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    /* Right Panel - Summary */
+    #summary-panel .summary-content {
+        line-height: 1.8;
+        color: #495057;
+    }
+
+    #summary-panel ul {
+        list-style-position: inside;
+        padding-left: 10px;
+    }
+
+    #summary-panel li {
+        margin: 8px 0;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .refresh-btn {
+        background: #28a745;
+        color: white;
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .refresh-btn:hover {
+        background: #218838;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
 </style>
 </head>
 <body>
-<div class="container">
-    <h2>Financial AI Chatbot</h2>
-    <div id="chat" class="chat-wrapper"></div>
 
-    <div id="inputSection">
-        <input type="text" id="question" placeholder="Type your message...">
-        <button onclick="sendText()">Send</button>
-        <button id="recordBtn">🎤 Record</button>
-        <button onclick="checkMission()">📊 Check Mission</button>
+<div class="main-container">
+    <!-- Left Panel: Intent/Mission Tracking -->
+    <div class="panel" id="intent-panel">
+        <div class="panel-header">📊 User Intent</div>
+        <div class="panel-content">
+            <div id="user-info-card">
+                <div class="user-name">Select a Member</div>
+                <div class="user-id">No member selected</div>
+            </div>
+            <div id="intent-content">
+                <div class="loading">Select a member to view intent</div>
+            </div>
+            <button class="refresh-btn" onclick="loadIntent()">🔄 Refresh Intent</button>
+        </div>
     </div>
-    
+
+    <!-- Center Panel: Chat -->
+    <div class="panel" id="chat-panel">
+        <div class="panel-header">💬 Credit Union AI Assistant</div>
+        <div class="member-selector">
+            <label for="member-select">Select Member:</label>
+            <select id="member-select" onchange="onMemberChange()">
+                <option value="">Loading members...</option>
+            </select>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="input-section">
+            <input type="text" id="question-input" placeholder="Ask me about loans, savings, or financial advice..." />
+            <button class="btn-primary" onclick="sendMessage()">Send</button>
+            <button class="btn-secondary" id="record-btn" onclick="toggleRecording()">🎤</button>
+        </div>
+    </div>
+
+    <!-- Right Panel: Conversation Summary -->
+    <div class="panel" id="summary-panel">
+        <div class="panel-header">📝 Conversation Summary</div>
+        <div class="panel-content">
+            <div id="summary-content" class="summary-content">
+                <div class="loading">No conversation yet...</div>
+            </div>
+            <button class="refresh-btn" onclick="loadSummary()">🔄 Refresh Summary</button>
+        </div>
+    </div>
 </div>
 
 <script>
 let mediaRecorder;
 let audioChunks = [];
 let recording = false;
+let selectedUserId = null;
+let membersData = [];
 
-function appendMessage(sender, text, id) {
-    const chat = document.getElementById('chat');
-    const div = document.createElement('div');
-    div.className = "message " + sender;
-    if (id) div.id = id;
-    div.innerHTML = text;  // allow HTML formatting
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-}
+// Initialize the app
+window.addEventListener('DOMContentLoaded', () => {
+    loadMembers();
+});
 
-function updateMessage(id, text) {
-    const div = document.getElementById(id);
-    if (div) {
-        div.innerHTML = text;
+// Load members list
+async function loadMembers() {
+    const memberSelect = document.getElementById('member-select');
+
+    try {
+        const res = await fetch('/get_members');
+        const data = await res.json();
+
+        if (data.members && data.members.length > 0) {
+            membersData = data.members;
+            memberSelect.innerHTML = '<option value="">-- Select a Member --</option>';
+            data.members.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = `${member.name} (${member.id}) - Credit Score: ${member.credit_score}`;
+                memberSelect.appendChild(option);
+            });
+
+            // Select first member by default
+            memberSelect.selectedIndex = 1;
+            selectedUserId = data.members[0].id;
+            onMemberChange();
+        } else {
+            memberSelect.innerHTML = '<option value="">No members available</option>';
+        }
+    } catch (err) {
+        console.error('Error loading members:', err);
+        memberSelect.innerHTML = '<option value="">Error loading members</option>';
     }
 }
 
+// Handle member selection change
+function onMemberChange() {
+    const memberSelect = document.getElementById('member-select');
+    selectedUserId = memberSelect.value;
+
+    if (selectedUserId) {
+        // Update user info card
+        const member = membersData.find(m => m.id === selectedUserId);
+        if (member) {
+            updateUserInfoCard(member);
+        }
+
+        // Clear chat messages
+        document.getElementById('chat-messages').innerHTML = '';
+
+        // Clear previous user's intent and summary
+        document.getElementById('intent-content').innerHTML = '<div class="loading">Loading intent...</div>';
+        document.getElementById('summary-content').innerHTML = '<div class="loading">Loading summary...</div>';
+
+        // Reload intent and summary for new member
+        loadIntent();
+        loadSummary();
+    }
+}
+
+// Update user info card with member details
+function updateUserInfoCard(member) {
+    const userInfoCard = document.getElementById('user-info-card');
+
+    userInfoCard.innerHTML = `
+        <div class="user-name">${escapeHtml(member.name)}</div>
+        <div class="user-id">ID: ${escapeHtml(member.id)}</div>
+        <div class="user-details">
+            <div class="user-detail-item">
+                <div class="user-detail-label">Credit Score</div>
+                <div class="user-detail-value">${escapeHtml(String(member.credit_score))}</div>
+            </div>
+            <div class="user-detail-item">
+                <div class="user-detail-label">Age</div>
+                <div class="user-detail-value">${escapeHtml(member.age)}</div>
+            </div>
+            <div class="user-detail-item">
+                <div class="user-detail-label">Joined Year</div>
+                <div class="user-detail-value">${escapeHtml(String(member.joined_year))}</div>
+            </div>
+            <div class="user-detail-item">
+                <div class="user-detail-label">Transactions</div>
+                <div class="user-detail-value">$${escapeHtml(String(member.amount_transaction.toLocaleString()))}</div>
+            </div>
+        </div>
+    `;
+}
+
+// Append message to chat
+function appendMessage(type, text, id = null) {
+    const chatMessages = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    if (id) messageDiv.id = id;
+
+    let label = '';
+    if (type === 'user') label = '<div class="message-label">You</div>';
+    else if (type === 'ai') label = '<div class="message-label">Assistant</div>';
+
+    messageDiv.innerHTML = label + text;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function updateMessage(id, text) {
+    const msg = document.getElementById(id);
+    if (msg) msg.innerHTML = text;
+}
+
 function escapeHtml(text) {
-    const div = document.createElement("div");
+    const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-async function checkMission() {
-    const processingId = "mission_" + Date.now();
-    appendMessage('ai processing', "📊 Analyzing conversation for mission...", processingId);
+// Send text message
+async function sendMessage() {
+    const input = document.getElementById('question-input');
+    const question = input.value.trim();
+    if (!question) return;
+
+    if (!selectedUserId) {
+        alert('Please select a member first');
+        return;
+    }
+
+    appendMessage('user', escapeHtml(question));
+    input.value = '';
+
+    const processingId = 'processing_' + Date.now();
+    appendMessage('processing', 'Thinking...', processingId);
 
     try {
-        const res = await fetch('/classify_mission', {
+        const res = await fetch('/ask_text', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, user_id: selectedUserId })
         });
-
-        if (!res.ok) {
-            updateMessage(processingId, `<em style="color:red">Error fetching mission</em>`);
-            return;
-        }
 
         const data = await res.json();
 
-        updateMessage(processingId,
-            `<b>Mission:</b> ${escapeHtml(data.mission_id)}<br>
-             <b>Stage:</b> ${escapeHtml(data.stage)}<br>
-             <b>Why:</b> ${escapeHtml(data.explanation)}`
-        );
+        // Remove processing message
+        const processingMsg = document.getElementById(processingId);
+        if (processingMsg) processingMsg.remove();
+
+        appendMessage('ai', escapeHtml(data.answer));
+
+        // Automatically refresh intent and summary after conversation
+        loadIntent();
+        loadSummary();
 
     } catch (err) {
-        updateMessage(processingId, `<em style="color:red">Error: ${escapeHtml(err.message)}</em>`);
+        updateMessage(processingId, `Error: ${escapeHtml(err.message)}`);
     }
 }
 
+// Handle Enter key
+document.getElementById('question-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
 
-async function sendText() {
-    const question = document.getElementById('question').value;
-    if (!question) return;
-    appendMessage('user', "You: " + question);
-    document.getElementById('question').value = '';
+// Load user intent/mission
+async function loadIntent() {
+    if (!selectedUserId) {
+        return;
+    }
 
-    const res = await fetch('/ask_text', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({question})
+    const intentContent = document.getElementById('intent-content');
+    intentContent.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+        const res = await fetch(`/user_intent?user_id=${encodeURIComponent(selectedUserId)}`);
+        const data = await res.json();
+
+        if (data.mission_id === 'Unknown') {
+            intentContent.innerHTML = `
+                <div class="mission-card">
+                    <div class="mission-title">No Active Mission</div>
+                    <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                        Start chatting to identify your financial goals!
+                    </p>
+                </div>
+            `;
+        } else {
+            // Get mission stages from missions data
+            const stagesHtml = await getMissionStages(data.mission_id, data.stage);
+
+            intentContent.innerHTML = `
+                <div class="mission-card">
+                    <div class="mission-title">${escapeHtml(data.mission_id)}</div>
+                    <span class="stage">${escapeHtml(data.stage)}</span>
+                    <p style="color: #666; font-size: 13px; margin-top: 10px;">
+                        ${escapeHtml(data.explanation)}
+                    </p>
+                    ${stagesHtml}
+                </div>
+            `;
+        }
+    } catch (err) {
+        intentContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading intent</div>`;
+    }
+}
+
+// Update intent display with mission data
+async function updateIntentDisplay(data) {
+    const intentContent = document.getElementById('intent-content');
+
+    if (data.mission_id === 'Unknown') {
+        intentContent.innerHTML = `
+            <div class="mission-card">
+                <div class="mission-title">No Active Mission</div>
+                <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                    Start chatting to identify your financial goals!
+                </p>
+            </div>
+        `;
+    } else {
+        // Get mission stages from missions data
+        const stagesHtml = await getMissionStages(data.mission_id, data.stage);
+
+        intentContent.innerHTML = `
+            <div class="mission-card">
+                <div class="mission-title">${escapeHtml(data.mission_id)}</div>
+                <span class="stage">${escapeHtml(data.stage)}</span>
+                <p style="color: #666; font-size: 13px; margin-top: 10px;">
+                    ${escapeHtml(data.explanation)}
+                </p>
+                ${stagesHtml}
+            </div>
+        `;
+    }
+}
+
+// Get mission stages with current stage highlighted
+async function getMissionStages(missionId, currentStage) {
+    const defaultStages = ['IDENTIFIED', 'INTENT DETECTED', 'ACTIVATED', 'ENGAGED', 'CONVERTED'];
+
+    let stagesHtml = '<ul class="stage-list">';
+    defaultStages.forEach(stage => {
+        const active = stage === currentStage ? 'active' : '';
+        stagesHtml += `<li class="${active}">${stage}</li>`;
     });
-    const data = await res.json();
-    appendMessage('ai', "Assistant: " + data.answer);
-    playTTS(data.answer);
+    stagesHtml += '</ul>';
+
+    return stagesHtml;
 }
 
-async function sendAudioBlob(blob) {
-    const formData = new FormData();
-    formData.append('audio', blob, 'voice_input.wav');
-    appendMessage('ai processing', "Processing Speech...");
-    const res = await fetch('/upload_audio', { method: 'POST', body: formData });
-    const data = await res.json();
-    appendMessage('user', "You (voice): " + data.transcript);
-    appendMessage('ai', "Assistant: " + data.answer);
+// Load conversation summary
+async function loadSummary() {
+    if (!selectedUserId) {
+        return;
+    }
 
-    // Play AI TTS
-    // playAudioFile(data.speech_file);
-}
+    const summaryContent = document.getElementById('summary-content');
+    summaryContent.innerHTML = '<div class="loading">Loading summary...</div>';
 
-function playAudioFile(url) {
-    const audio = new Audio('/download/' + url.split('/').pop());
-    audio.play();
-}
+    try {
+        const res = await fetch(`/conversation_summary?user_id=${encodeURIComponent(selectedUserId)}`);
+        const data = await res.json();
 
-async function playTTS(text) {
-    const res = await fetch('/upload_audio', { 
-        method: 'POST', 
-        body: new FormData(Object.assign(new FormData(), { audio: new Blob([new TextEncoder().encode(text)], {type:'text/plain'}) }))
-    });
-    // fallback: skip TTS if not available
+        if (data.summary) {
+            // Convert markdown-style lists to HTML
+            let formattedSummary = escapeHtml(data.summary)
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n- /g, '<li>')
+                .replace(/\n/g, '<br>');
+
+            if (formattedSummary.includes('<li>')) {
+                formattedSummary = '<ul>' + formattedSummary + '</ul>';
+            } else {
+                formattedSummary = '<p>' + formattedSummary + '</p>';
+            }
+
+            summaryContent.innerHTML = formattedSummary;
+        } else {
+            summaryContent.innerHTML = '<div class="loading">No conversation yet...</div>';
+        }
+    } catch (err) {
+        summaryContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading summary</div>`;
+    }
 }
 
 // Voice recording
-document.getElementById('recordBtn').addEventListener('click', async () => {
+async function toggleRecording() {
+    const recordBtn = document.getElementById('record-btn');
+
     if (!recording) {
-        // Start recording
-        if (!navigator.mediaDevices) return alert("MediaDevices API not supported");
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = e => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-            sendAudioBlob(audioBlob);
-        };
-        mediaRecorder.start();
-        recording = true;
-        document.getElementById('recordBtn').innerText = '⏹️ Stop';
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                await sendAudio(audioBlob);
+            };
+
+            mediaRecorder.start();
+            recording = true;
+            recordBtn.textContent = '⏹️';
+            recordBtn.style.background = '#dc3545';
+        } catch (err) {
+            alert('Microphone access denied or not available');
+        }
     } else {
         mediaRecorder.stop();
         recording = false;
-        document.getElementById('recordBtn').innerText = '🎤 Record';
+        recordBtn.textContent = '🎤';
+        recordBtn.style.background = '';
     }
-});
+}
+
+async function sendAudio(blob) {
+    if (!selectedUserId) {
+        alert('Please select a member first');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('audio', blob, 'audio.wav');
+    formData.append('user_id', selectedUserId);
+
+    const processingId = 'processing_' + Date.now();
+    appendMessage('processing', 'Processing audio...', processingId);
+
+    try {
+        const res = await fetch('/upload_audio', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await res.json();
+
+        const processingMsg = document.getElementById(processingId);
+        if (processingMsg) processingMsg.remove();
+
+        appendMessage('user', `🎤 ${escapeHtml(data.transcript)}`);
+        appendMessage('ai', escapeHtml(data.answer));
+
+        // Automatically refresh intent and summary after conversation
+        loadIntent();
+        loadSummary();
+
+    } catch (err) {
+        updateMessage(processingId, `Error: ${escapeHtml(err.message)}`);
+    }
+}
 </script>
+
 </body>
 </html>

@@ -5,24 +5,24 @@ def sample_members():
     data = [
         {
             "id": "M001",
-            "company": "CU1",
             "name": "Alice",
+            "age": 30,
             "joined_year": 2018,
             "credit_score": 720,
             "amount_transaction": 25000,
         },
         {
             "id": "M002",
-            "company": "CU1",
             "name": "Bob",
+            "age": 28,
             "joined_year": 2020,
             "credit_score": 650,
             "amount_transaction": 12000,
         },
         {
             "id": "M003",
-            "company": "CU2",
             "name": "Charlie",
+            "age": 35,
             "joined_year": 2015,
             "credit_score": 780,
             "amount_transaction": 40000,
@@ -35,7 +35,6 @@ def sample_missions():
     data = [
         {
             "mission_id": "MSN001",
-            "company": "CU1",
             "title": "Auto Loan",
             "description": "Car financing mission",
             "type": "auto loan",
@@ -49,7 +48,6 @@ def sample_missions():
         },
         {
             "mission_id": "MSN002",
-            "company": "CU1",
             "title": "Personal Loan",
             "description": "Personal financing mission",
             "type": "personal loan",

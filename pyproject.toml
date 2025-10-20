@@ -9,10 +9,11 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 flask = "^3.1.2"
-mem0ai = "^0.1.118"
 pandas = "^2.3.3"
 uvicorn = {extras = ["standard"], version = "^0.37.0"}
 python-multipart = "^0.0.20"
+mem0ai = "^1.0.0"
+openai = "^2.5.0"
 
 
 [tool.poetry.group.dev.dependencies]
