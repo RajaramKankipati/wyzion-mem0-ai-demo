@@ -51,7 +51,7 @@ def add_memory(messages: str, user_id: str) -> str:
             message_list = [{"role": "user", "content": messages}]
             logger.debug("Treating messages as plain text")
 
-        memory_client.add(message_list, user_id=user_id, agent_id="sales-agent", output_format="v1.1")
+        memory_client.add(message_list, user_id=user_id, output_format="v1.1")
         logger.info(f"Memory stored successfully for user_id={user_id}")
         return json.dumps({"success": True, "message": "Memory stored successfully"})
     except Exception as e:
@@ -72,7 +72,7 @@ def search_memories(query: str, user_id: str) -> str:
     """
     try:
         logger.info(f"Searching memories for user_id={user_id}, query='{query}'")
-        memories = memory_client.search(query, user_id=user_id, agent_id="sales-agent")
+        memories = memory_client.search(query, user_id=user_id)
         memory_texts = [m["memory"] for m in memories]
         logger.info(f"Found {len(memory_texts)} memories for query='{query}'")
         return json.dumps({"success": True, "memories": memory_texts, "count": len(memory_texts)})
@@ -93,7 +93,7 @@ def get_all_memories(user_id: str) -> str:
     """
     try:
         logger.info(f"Fetching all memories for user_id={user_id}")
-        memories = memory_client.get_all(filters={"OR": [{"user_id": user_id}, {"agent_id": "sales-agent"}]})
+        memories = memory_client.get_all(filters={[{"user_id": user_id}]})
         logger.debug(f"Raw memories response type: {type(memories)}")
         logger.debug(f"Raw memories response: {memories}")
 
@@ -132,6 +132,102 @@ def get_all_memories(user_id: str) -> str:
     except Exception as e:
         logger.error(f"Error fetching memories for user_id={user_id}: {e}", exc_info=True)
         return json.dumps({"success": False, "error": str(e), "memories": [], "count": 0})
+
+
+def add_member_facts(member_data: dict) -> str:
+    """
+    Store member details as facts in memory for a specific member.
+
+    Args:
+        member_data: Dictionary containing member details including:
+                    - id: Member ID (used as user_id)
+                    - name: Member name
+                    - age: Member age
+                    - vertical: Member's industry vertical
+                    - persona: Member's persona
+                    - current_stage: Current journey stage
+                    - goal: Member's goal
+                    Plus vertical-specific fields
+
+    Returns:
+        A JSON string with the result of the operation
+    """
+    try:
+        member_id = member_data.get("id")
+        if not member_id:
+            return json.dumps({"success": False, "error": "Member ID is required"})
+
+        logger.info(f"Adding member facts for member_id={member_id}")
+
+        # Create fact-based messages about the member
+        facts = []
+
+        if member_data.get("name"):
+            facts.append(f"Member's name is {member_data['name']}")
+
+        if member_data.get("age"):
+            facts.append(f"Member is {member_data['age']} years old")
+
+        if member_data.get("vertical"):
+            facts.append(f"Member is in the {member_data['vertical']} vertical")
+
+        if member_data.get("persona"):
+            facts.append(f"Member persona: {member_data['persona']}")
+
+        if member_data.get("current_stage"):
+            facts.append(f"Current journey stage: {member_data['current_stage']}")
+
+        if member_data.get("goal"):
+            facts.append(f"Member's goal: {member_data['goal']}")
+
+        if member_data.get("joined_year"):
+            facts.append(f"Member joined in {member_data['joined_year']}")
+
+        # Add vertical-specific facts
+        vertical = member_data.get("vertical", "")
+        if vertical == "BFSI":
+            if member_data.get("credit_score"):
+                facts.append(f"Credit score: {member_data['credit_score']}")
+            if member_data.get("transaction_volume"):
+                facts.append(f"Transaction volume: ${member_data['transaction_volume']:,}")
+            if member_data.get("current_products"):
+                facts.append(f"Current products: {', '.join(member_data['current_products'])}")
+        elif vertical == "Healthcare":
+            if member_data.get("visit_frequency"):
+                facts.append(f"Visit frequency: {member_data['visit_frequency']}")
+            if member_data.get("current_products"):
+                facts.append(f"Care programs: {', '.join(member_data['current_products'])}")
+        elif vertical == "E-commerce":
+            if member_data.get("session_count"):
+                facts.append(f"Session count: {member_data['session_count']}")
+            if member_data.get("browsing_behavior"):
+                facts.append(f"Browsing behavior: {member_data['browsing_behavior']}")
+
+        if member_data.get("risk_level"):
+            facts.append(f"Risk level: {member_data['risk_level']}")
+
+        # Combine facts into a structured message
+        fact_message = [
+            {
+                "role": "user",
+                "content": f"Member Profile Facts for {member_data.get('name', member_id)}: " + "; ".join(facts),
+            }
+        ]
+
+        # Store facts in mem0
+        memory_client.add(fact_message, user_id=member_id, output_format="v1.1")
+
+        logger.info(f"Member facts stored successfully for member_id={member_id}")
+        return json.dumps(
+            {
+                "success": True,
+                "message": f"Member facts stored for {member_data.get('name', member_id)}",
+                "facts_count": len(facts),
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error adding member facts: {e}", exc_info=True)
+        return json.dumps({"success": False, "error": str(e)})
 
 
 # Tool definitions for OpenAI function calling
@@ -181,4 +277,5 @@ MEMORY_TOOL_FUNCTIONS = {
     "search_memories": search_memories,
     "get_all_memories": get_all_memories,
     "add_memory": add_memory,
+    "add_member_facts": add_member_facts,
 }
