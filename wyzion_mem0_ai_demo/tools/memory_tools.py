@@ -93,7 +93,7 @@ def get_all_memories(user_id: str) -> str:
     """
     try:
         logger.info(f"Fetching all memories for user_id={user_id}")
-        memories = memory_client.get_all(filters={[{"user_id": user_id}]})
+        memories = memory_client.get_all(filters={"user_id": user_id})
         logger.debug(f"Raw memories response type: {type(memories)}")
         logger.debug(f"Raw memories response: {memories}")
 

@@ -3,12 +3,18 @@ import os
 import tempfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict
 from threading import Lock
 
 from flask import Flask, jsonify, render_template, request, send_file
 from openai import OpenAI
 
-from wyzion_mem0_ai_demo.data.missions import get_member_interactions, sample_members, sample_missions
+from wyzion_mem0_ai_demo.data.models import (
+    get_member_interactions,
+    get_stages_by_vertical,
+    sample_members,
+    sample_missions,
+)
 from wyzion_mem0_ai_demo.helper.json_formatting import clean_text
 from wyzion_mem0_ai_demo.tools.memory_tools import (
     add_member_facts,
@@ -71,6 +77,42 @@ class LocalMemoryCache:
 
 # Global memory cache instance
 memory_cache = LocalMemoryCache()
+
+
+# --------------------------
+# Member Stage Tracking
+# --------------------------
+class MemberStageTracker:
+    """
+    Thread-safe tracker for member journey stages.
+    Updates the current stage based on conversation intent detection.
+    """
+
+    def __init__(self):
+        self._stages = {}  # user_id -> current_stage
+        self._lock = Lock()
+        logger.info("MemberStageTracker initialized")
+
+    def update_stage(self, user_id: str, stage: str):
+        """Update the current stage for a member"""
+        with self._lock:
+            old_stage = self._stages.get(user_id)
+            self._stages[user_id] = stage
+            logger.info(f"Updated stage for user_id={user_id}: {old_stage} -> {stage}")
+
+    def get_stage(self, user_id: str, default_stage: str = ""):
+        """Get the current stage for a member"""
+        with self._lock:
+            return self._stages.get(user_id, default_stage)
+
+    def has_stage(self, user_id: str):
+        """Check if a stage has been set for a member"""
+        with self._lock:
+            return user_id in self._stages
+
+
+# Global stage tracker instance
+stage_tracker = MemberStageTracker()
 
 
 # --------------------------
@@ -179,22 +221,22 @@ class CreditUnionAssistant:
         """Initialize member facts in memory for all members. This is optional and can be called during setup."""
         try:
             logger.info("Initializing member facts for all members")
-            members_df = sample_members()
+            members = sample_members()  # Returns List[Member]
             successful = 0
             failed = 0
 
-            for _, member in members_df.iterrows():
-                member_dict = member.to_dict()
+            for member in members:
+                member_dict = asdict(member)  # Convert dataclass to dict
                 result = json.loads(add_member_facts(member_dict))
                 if result.get("success"):
                     successful += 1
-                    logger.debug(f"Successfully initialized facts for member {member_dict['id']}")
+                    logger.debug(f"Successfully initialized facts for member {member.id}")
                 else:
                     failed += 1
-                    logger.warning(f"Failed to initialize facts for member {member_dict['id']}: {result.get('error')}")
+                    logger.warning(f"Failed to initialize facts for member {member.id}: {result.get('error')}")
 
             logger.info(f"Member facts initialization complete: {successful} successful, {failed} failed")
-            return {"successful": successful, "failed": failed, "total": len(members_df)}
+            return {"successful": successful, "failed": failed, "total": len(members)}
         except Exception as e:
             logger.error(f"Error initializing member facts: {e}", exc_info=True)
             return {"successful": 0, "failed": 0, "total": 0, "error": str(e)}
@@ -301,28 +343,28 @@ class CreditUnionAssistant:
         logger.info(f"Generating conversation summary for user_id={user_id}")
 
         # Get member information
-        members_df = sample_members()
-        member_info = members_df[members_df["id"] == user_id]
+        members = sample_members()  # Returns List[Member]
+        member = next((m for m in members if m.id == user_id), None)
 
-        if member_info.empty:
+        if member is None:
             logger.warning(f"Member with id={user_id} not found")
             member_name = "Unknown Member"
             member_data = {}
             lifecycle_state = "No Active Journey"
         else:
-            member_data = member_info.iloc[0].to_dict()
-            member_name = member_data.get("name", "Unknown Member")
+            member_data = asdict(member)  # Convert to dict for compatibility
+            member_name = member.name
+
+            # Use tracked stage if available, otherwise use default
+            current_stage = stage_tracker.get_stage(user_id, member.current_stage)
+            member_data["current_stage"] = current_stage  # Update member_data with tracked stage
 
             # Get mission based on member's vertical
-            vertical = member_data.get("vertical", "")
-            current_stage = member_data.get("current_stage", "Unknown")
+            missions = sample_missions()  # Returns List[Mission]
+            mission = next((m for m in missions if m.vertical == member.vertical), None)
 
-            missions_df = sample_missions()
-            mission_info = missions_df[missions_df["vertical"] == vertical]
-
-            if not mission_info.empty:
-                mission_title = mission_info.iloc[0]["title"]
-                lifecycle_state = f"{mission_title} - {current_stage}"
+            if mission:
+                lifecycle_state = f"{mission.title} - {current_stage}"
             else:
                 lifecycle_state = current_stage if current_stage != "Unknown" else "No Active Journey"
 
@@ -466,45 +508,97 @@ class CreditUnionAssistant:
         return out_file
 
     def classify_mission(self, user_id):
-        """Get the user's current mission and stage from their member profile"""
+        """Analyze conversation and determine the user's current mission stage"""
         logger.info(f"Getting mission info for user_id={user_id}")
 
         try:
             # Get member information
-            members_df = sample_members()
-            member_info = members_df[members_df["id"] == user_id]
+            members = sample_members()  # Returns List[Member]
+            member = next((m for m in members if m.id == user_id), None)
 
-            if member_info.empty:
+            if member is None:
                 logger.warning(f"Member with id={user_id} not found")
                 return {"mission_id": "Unknown", "stage": "Unknown", "explanation": "Member not found"}
 
-            member_data = member_info.iloc[0].to_dict()
-            vertical = member_data.get("vertical", "")
-            current_stage = member_data.get("current_stage", "Unknown")
-            goal = member_data.get("goal", "")
-
             # Get mission based on member's vertical
-            missions_df = sample_missions()
-            mission_info = missions_df[missions_df["vertical"] == vertical]
+            missions = sample_missions()  # Returns List[Mission]
+            mission = next((m for m in missions if m.vertical == member.vertical), None)
 
-            if mission_info.empty:
-                logger.warning(f"No mission found for vertical={vertical}")
+            if mission is None:
+                logger.warning(f"No mission found for vertical={member.vertical}")
                 return {
                     "mission_id": "Unknown",
-                    "stage": current_stage,
-                    "explanation": f"No mission found for vertical: {vertical}",
+                    "stage": member.current_stage,
+                    "explanation": f"No mission found for vertical: {member.vertical}",
                 }
 
-            mission_data = mission_info.iloc[0].to_dict()
-            mission_id = mission_data.get("mission_id", "Unknown")
-            mission_title = mission_data.get("title", "Unknown")
+            # Get conversation history to analyze stage
+            past_memories = self.get_memories(user_id=user_id)
 
-            logger.info(f"Retrieved mission: {mission_title} ({mission_id}), Stage: {current_stage}")
+            # Determine current stage based on conversation
+            if past_memories:
+                # Get available stages for this vertical
+                stages = get_stages_by_vertical(member.vertical)
+                stage_names = [s.stage for s in stages]
+
+                # Use AI to classify the current stage based on conversation
+                conversation_history = "\n".join([f"- {memory}" for memory in past_memories[-10:]])  # Last 10 messages
+
+                stage_prompt = f"""Based on the conversation history below, determine which journey stage the member is currently in.
+
+Member Profile:
+- Name: {member.name}
+- Vertical: {member.vertical}
+- Persona: {member.persona}
+- Goal: {member.goal}
+
+Available Journey Stages:
+{', '.join(stage_names)}
+
+Recent Conversation:
+{conversation_history}
+
+Instructions:
+- Analyze the conversation to understand member behavior and engagement
+- Select the most appropriate stage from the available stages
+- Consider the member's actions, questions, and level of interest
+- Return ONLY the exact stage name, nothing else
+
+Current Stage:"""
+
+                try:
+                    response = self.client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": stage_prompt}],
+                        max_tokens=50,
+                        temperature=0.3,
+                    )
+                    detected_stage = response.choices[0].message.content.strip()
+
+                    # Validate that the detected stage is in the available stages
+                    if detected_stage in stage_names:
+                        current_stage = detected_stage
+                        logger.info(f"AI detected stage: {current_stage} for user_id={user_id}")
+                        # Update the stage tracker
+                        stage_tracker.update_stage(user_id, current_stage)
+                    else:
+                        # Use tracked stage if available, otherwise default
+                        current_stage = stage_tracker.get_stage(user_id, member.current_stage)
+                        logger.warning(f"AI returned invalid stage '{detected_stage}', using: {current_stage}")
+                except Exception as e:
+                    logger.error(f"Error detecting stage with AI: {e}")
+                    current_stage = stage_tracker.get_stage(user_id, member.current_stage)
+            else:
+                # No conversation yet, use default stage or tracked stage
+                current_stage = stage_tracker.get_stage(user_id, member.current_stage)
+                logger.info(f"No conversation history, using stage: {current_stage}")
+
+            logger.info(f"Retrieved mission: {mission.title} ({mission.mission_id}), Stage: {current_stage}")
 
             return {
-                "mission_id": mission_title,  # Return mission title instead of ID
+                "mission_id": mission.title,  # Return mission title instead of ID
                 "stage": current_stage,
-                "explanation": f"Member is currently at '{current_stage}' stage in their {mission_title} journey. Goal: {goal}",
+                "explanation": f"Member is currently at '{current_stage}' stage in their {mission.title} journey. Goal: {member.goal}",
             }
 
         except Exception as e:
@@ -541,21 +635,19 @@ def get_members():
     """Get list of all members"""
     try:
         logger.info("Fetching members list")
-        members_df = sample_members()
-        # Convert to dict and clean up NaN values
-        members_list = members_df.to_dict(orient="records")
+        members = sample_members()  # Returns List[Member]
 
-        # Clean up NaN values to prevent JSON serialization issues
-        import math
-
-        for member in members_list:
-            # Remove or replace NaN values
-            keys_to_remove = []
-            for key, value in member.items():
-                if isinstance(value, float) and math.isnan(value):
-                    keys_to_remove.append(key)
-            for key in keys_to_remove:
-                del member[key]
+        # Convert dataclasses to dicts, excluding None values
+        members_list = []
+        for member in members:
+            member_dict = asdict(member)
+            # Update with tracked stage if available
+            if stage_tracker.has_stage(member.id):
+                member_dict["current_stage"] = stage_tracker.get_stage(member.id)
+                logger.debug(f"Using tracked stage for {member.id}: {member_dict['current_stage']}")
+            # Remove None values for cleaner JSON
+            member_dict = {k: v for k, v in member_dict.items() if v is not None}
+            members_list.append(member_dict)
 
         logger.info(f"Retrieved {len(members_list)} members")
         return jsonify({"members": members_list})
@@ -572,24 +664,24 @@ def initialize_member_facts():
         member_id = data.get("member_id") if data else None
 
         logger.info("Initializing member facts in memory")
-        members_df = sample_members()
+        members = sample_members()  # Returns List[Member]
 
         # Filter to specific member if requested
         if member_id:
-            members_df = members_df[members_df["id"] == member_id]
-            if members_df.empty:
+            members = [m for m in members if m.id == member_id]
+            if not members:
                 logger.warning(f"Member with id={member_id} not found")
                 return jsonify({"error": f"Member {member_id} not found"}), 404
 
         # Store facts for each member
         results = []
-        for _, member in members_df.iterrows():
-            member_dict = member.to_dict()
+        for member in members:
+            member_dict = asdict(member)  # Convert dataclass to dict
             result = json.loads(add_member_facts(member_dict))
             results.append(
                 {
-                    "member_id": member_dict["id"],
-                    "name": member_dict["name"],
+                    "member_id": member.id,
+                    "name": member.name,
                     "success": result.get("success"),
                     "message": result.get("message"),
                     "error": result.get("error"),
@@ -720,6 +812,29 @@ def conversation_summary():
         return jsonify(summary_data)
     except Exception as e:
         logger.error(f"Error in conversation_summary endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/get_stages", methods=["GET"])
+def get_stages():
+    """Get journey stages for a specific vertical"""
+    try:
+        vertical = request.args.get("vertical", "")
+
+        if not vertical:
+            logger.warning("vertical missing in request")
+            return jsonify({"error": "vertical missing"}), 400
+
+        logger.info(f"Fetching stages for vertical={vertical}")
+        stages = get_stages_by_vertical(vertical)  # Returns List[JourneyStage]
+
+        # Convert dataclasses to dicts
+        stages_list = [asdict(stage) for stage in stages]
+
+        logger.info(f"Retrieved {len(stages_list)} stages for vertical={vertical}")
+        return jsonify({"stages": stages_list})
+    except Exception as e:
+        logger.error(f"Error in get_stages endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 

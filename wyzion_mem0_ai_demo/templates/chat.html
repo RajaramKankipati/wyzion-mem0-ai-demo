@@ -132,6 +132,12 @@
         padding: 15px;
         margin-bottom: 15px;
         border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .mission-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
     }
 
     .mission-title {
@@ -139,6 +145,9 @@
         color: #333;
         margin-bottom: 8px;
         font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .stage {
@@ -149,25 +158,111 @@
         border-radius: 20px;
         font-size: 12px;
         margin-bottom: 10px;
+        font-weight: 600;
+    }
+
+    /* Journey Progress Visualization */
+    .journey-progress {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .journey-progress-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .stage-list {
         list-style: none;
-        margin-top: 10px;
+        margin: 0;
+        padding: 0;
+        position: relative;
+    }
+
+    .stage-list::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        bottom: 15px;
+        width: 2px;
+        background: linear-gradient(to bottom, #28a745 0%, #28a745 var(--progress-percentage, 0%), #e9ecef var(--progress-percentage, 0%), #e9ecef 100%);
+        z-index: 0;
     }
 
     .stage-list li {
-        padding: 8px;
-        margin: 5px 0;
-        background: #e9ecef;
-        border-radius: 6px;
+        padding: 10px 10px 10px 45px;
+        margin: 0;
+        position: relative;
         font-size: 13px;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
+
+    .stage-list li::before {
+        content: '';
+        position: absolute;
+        left: 9px;
+        top: 12px;
+        width: 14px;
+        height: 14px;
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 50%;
+        z-index: 1;
+        transition: all 0.3s ease;
+    }
+
+    .stage-list li.completed {
+        color: #495057;
+    }
+
+    .stage-list li.completed::before {
+        background: #28a745;
+        border-color: #28a745;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+        content: '✓';
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     .stage-list li.active {
-        background: #667eea;
-        color: white;
-        font-weight: bold;
+        color: #333;
+        font-weight: 600;
+    }
+
+    .stage-list li.active::before {
+        background: white;
+        border-width: 3px;
+        width: 18px;
+        height: 18px;
+        left: 7px;
+        top: 10px;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+        }
+        50% {
+            box-shadow: 0 0 0 6px rgba(102, 126, 234, 0);
+        }
+    }
+
+    .stage-emoji {
+        margin-right: 6px;
+        font-size: 14px;
     }
 
     .loading {
@@ -533,7 +628,7 @@
 
             <!-- Active Journeys - Intent -->
             <div class="dossier-section">
-                <div class="section-title">Active Journeys</div>
+                <div class="section-title" id="journey-section-title">Active Journeys</div>
                 <div id="intent-content">
                     <div class="loading">Select a member to view intent</div>
                 </div>
@@ -578,7 +673,7 @@ async function loadMembers() {
             data.members.forEach(member => {
                 const option = document.createElement('option');
                 option.value = member.id;
-                option.textContent = `${member.name} - ${member.vertical} (${member.persona})`;
+                option.textContent = `${member.name} - ${member.vertical}`;
                 memberSelect.appendChild(option);
             });
 
@@ -605,6 +700,7 @@ function onMemberChange() {
         const member = membersData.find(m => m.id === selectedUserId);
         if (member) {
             updateUserInfoCard(member);
+            updateJourneySectionTitle(member.vertical);
         }
 
         // Clear chat messages
@@ -618,6 +714,17 @@ function onMemberChange() {
         loadIntent();
         loadSummary();
     }
+}
+
+// Update journey section title based on vertical
+function updateJourneySectionTitle(vertical) {
+    const titles = {
+        'BFSI': 'Active Journeys - Financial Goals',
+        'Healthcare': 'Active Journeys - Wellness Path',
+        'E-commerce': 'Active Journeys - Shopping Journey'
+    };
+    const title = titles[vertical] || 'Active Journeys';
+    document.getElementById('journey-section-title').textContent = title;
 }
 
 // Update user info card with member details
@@ -667,8 +774,8 @@ function updateUserInfoCard(member) {
                 <div class="user-detail-value">${escapeHtml(member.browsing_behavior || 'N/A')}</div>
             </div>
             <div class="user-detail-item">
-                <div class="user-detail-label">Stage</div>
-                <div class="user-detail-value">${escapeHtml(member.current_stage || 'N/A')}</div>
+                <div class="user-detail-label">Risk Level</div>
+                <div class="user-detail-value">${escapeHtml(member.risk_level || 'N/A')}</div>
             </div>
         `;
     }
@@ -772,23 +879,35 @@ async function loadIntent() {
         const res = await fetch(`/user_intent?user_id=${encodeURIComponent(selectedUserId)}`);
         const data = await res.json();
 
+        console.log('Intent data received:', data);
+
+        // Get member's vertical
+        const member = membersData.find(m => m.id === selectedUserId);
+        const vertical = member ? member.vertical : 'BFSI';
+
         if (data.mission_id === 'Unknown') {
+            const noMissionText = getNoMissionText(vertical);
             intentContent.innerHTML = `
                 <div class="mission-card">
-                    <div class="mission-title">No Active Mission</div>
+                    <div class="mission-title">No Active Journey</div>
                     <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                        Start chatting to identify your financial goals!
+                        ${noMissionText}
                     </p>
                 </div>
             `;
         } else {
             // Get mission stages from missions data
-            const stagesHtml = await getMissionStages(data.mission_id, data.stage);
+            const stagesHtml = await getMissionStages(data.mission_id, data.stage, vertical);
+
+            // Get vertical-specific styling
+            const verticalStyle = getVerticalStyle(vertical);
 
             intentContent.innerHTML = `
-                <div class="mission-card">
-                    <div class="mission-title">${escapeHtml(data.mission_id)}</div>
-                    <span class="stage">${escapeHtml(data.stage)}</span>
+                <div class="mission-card" style="border-left-color: ${verticalStyle.color};">
+                    <div class="mission-title" style="color: ${verticalStyle.color};">
+                        ${verticalStyle.icon} ${escapeHtml(data.mission_id)}
+                    </div>
+                    <span class="stage" style="background: ${verticalStyle.color};">${escapeHtml(data.stage)}</span>
                     <p style="color: #666; font-size: 13px; margin-top: 10px;">
                         ${escapeHtml(data.explanation)}
                     </p>
@@ -801,48 +920,78 @@ async function loadIntent() {
     }
 }
 
-// Update intent display with mission data
-async function updateIntentDisplay(data) {
-    const intentContent = document.getElementById('intent-content');
+// Get vertical-specific styling
+function getVerticalStyle(vertical) {
+    const styles = {
+        'BFSI': { color: '#667eea', icon: '💰' },
+        'Healthcare': { color: '#f56565', icon: '❤️' },
+        'E-commerce': { color: '#9f7aea', icon: '🛍️' }
+    };
+    return styles[vertical] || styles['BFSI'];
+}
 
-    if (data.mission_id === 'Unknown') {
-        intentContent.innerHTML = `
-            <div class="mission-card">
-                <div class="mission-title">No Active Mission</div>
-                <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                    Start chatting to identify your financial goals!
-                </p>
-            </div>
-        `;
-    } else {
-        // Get mission stages from missions data
-        const stagesHtml = await getMissionStages(data.mission_id, data.stage);
-
-        intentContent.innerHTML = `
-            <div class="mission-card">
-                <div class="mission-title">${escapeHtml(data.mission_id)}</div>
-                <span class="stage">${escapeHtml(data.stage)}</span>
-                <p style="color: #666; font-size: 13px; margin-top: 10px;">
-                    ${escapeHtml(data.explanation)}
-                </p>
-                ${stagesHtml}
-            </div>
-        `;
-    }
+// Get no mission text based on vertical
+function getNoMissionText(vertical) {
+    const texts = {
+        'BFSI': 'Start chatting to identify your financial goals!',
+        'Healthcare': 'Start chatting to explore your wellness journey!',
+        'E-commerce': 'Start browsing to discover personalized recommendations!'
+    };
+    return texts[vertical] || texts['BFSI'];
 }
 
 // Get mission stages with current stage highlighted
-async function getMissionStages(missionId, currentStage) {
-    const defaultStages = ['IDENTIFIED', 'INTENT DETECTED', 'ACTIVATED', 'ENGAGED', 'CONVERTED'];
+async function getMissionStages(missionId, currentStage, vertical) {
+    try {
+        // Fetch stages dynamically from API
+        const res = await fetch(`/get_stages?vertical=${encodeURIComponent(vertical)}`);
+        const data = await res.json();
+        const stages = data.stages || [];
 
-    let stagesHtml = '<ul class="stage-list">';
-    defaultStages.forEach(stage => {
-        const active = stage === currentStage ? 'active' : '';
-        stagesHtml += `<li class="${active}">${stage}</li>`;
-    });
-    stagesHtml += '</ul>';
+        const verticalStyle = getVerticalStyle(vertical);
 
-    return stagesHtml;
+        // Find the index of the current stage
+        const currentStageIndex = stages.findIndex(s => s.stage === currentStage);
+
+        // Calculate progress percentage for the connector line
+        const progressPercentage = currentStageIndex >= 0
+            ? ((currentStageIndex / Math.max(stages.length - 1, 1)) * 100)
+            : 0;
+
+        let stagesHtml = '<div class="journey-progress">';
+        stagesHtml += '<div class="journey-progress-title">Journey Progress</div>';
+        stagesHtml += `<ul class="stage-list" style="--progress-percentage: ${progressPercentage}%;">`;
+
+        stages.forEach((stage, index) => {
+            let stageClass = '';
+            let stageStyle = '';
+
+            if (index < currentStageIndex) {
+                // Completed stage
+                stageClass = 'completed';
+            } else if (stage.stage === currentStage) {
+                // Current/Active stage
+                stageClass = 'active';
+                stageStyle = `border-color: ${verticalStyle.color};`;
+            }
+            // Upcoming stages have no special class (default gray styling)
+
+            stagesHtml += `
+                <li class="${stageClass}" style="${stageStyle}">
+                    <span class="stage-emoji">${stage.emoji}</span>
+                    ${escapeHtml(stage.stage)}
+                </li>
+            `;
+        });
+
+        stagesHtml += '</ul>';
+        stagesHtml += '</div>';
+
+        return stagesHtml;
+    } catch (err) {
+        console.error('Error fetching stages:', err);
+        return '<p style="color: #dc3545; font-size: 12px;">Error loading stages</p>';
+    }
 }
 
 // Load conversation summary
