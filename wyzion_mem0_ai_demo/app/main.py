@@ -507,6 +507,96 @@ class CreditUnionAssistant:
             response.stream_to_file(out_file)
         return out_file
 
+    def _get_vertical_stage_guidance(self, vertical):
+        """
+        Get vertical-specific stage detection guidance based on TEST_SCENARIOS.md
+
+        Returns detailed indicators for each stage transition to improve accuracy
+        """
+        if vertical == "BFSI":
+            return """
+Stage Detection Indicators for BFSI:
+
+1. Loyal Member → Opportunity Detected:
+   - Member expresses financial goals or savings patterns
+   - Asks about investment options, mutual funds, or better returns
+   - Shows interest in growing wealth beyond basic savings
+   - Keywords: "savings", "grow", "mutual funds", "investment", "better returns"
+
+2. Opportunity Detected → Consideration:
+   - Asks specific questions about SIP mechanism and how it works
+   - Expresses risk concerns or wants to understand market volatility
+   - Discusses specific investment amounts (e.g., "5000 per month")
+   - Seeks guidance on which funds to choose
+   - Keywords: "SIP", "how does it work", "risk", "market crash", "which fund", "amount"
+
+3. Consideration → Multi-Product Member:
+   - Explicitly states readiness to start ("I'm ready", "let's start")
+   - Requests help with account opening or KYC process
+   - Makes specific investment decisions (e.g., "balanced fund, 5000 per month")
+   - Confirms first investment or SIP setup
+   - Keywords: "ready to start", "next step", "set this up", "first installment", "went through"
+"""
+        elif vertical == "Healthcare":
+            return """
+Stage Detection Indicators for Healthcare:
+
+1. Stable Patient → Proactive Opportunity:
+   - Expresses concerns about health metrics (blood pressure, weight)
+   - Asks about prevention or avoiding future health problems
+   - Shows proactive mindset about health management
+   - Interested in lifestyle changes or wellness
+   - Keywords: "should I be worried", "prevent", "proactive", "avoid", "future health"
+
+2. Proactive Opportunity → Engagement:
+   - Asks specific questions about wellness program details
+   - Inquires about personalization and customization of programs
+   - Discusses time commitment and program requirements
+   - Wants to know expected results and benefits
+   - Keywords: "wellness program", "what does it include", "customized", "time commitment", "results"
+
+3. Engagement → Deepened Relationship:
+   - Decides to enroll in wellness program
+   - Reports starting wellness activities (diet plan, exercise)
+   - Shares progress updates and positive outcomes
+   - Expresses commitment to long-term wellness
+   - Keywords: "enroll", "I'd like to start", "I've started", "following the plan", "continue long-term"
+"""
+        elif vertical == "E-commerce":
+            return """
+Stage Detection Indicators for E-commerce:
+
+1. Prospect → Qualified Lead:
+   - Looks for specific product types with clear intent
+   - Mentions budget range (especially high-value: 40-50k+)
+   - Asks for recommendations with specific requirements
+   - Compares products or brands
+   - Keywords: "looking for", "budget around", "recommend", "tell me more", "comparing"
+
+2. Qualified Lead → Consultation Booked:
+   - Seeks expert advice or personal guidance
+   - Expresses concerns about size, fit, or customization
+   - Indicates this is a significant purchase decision
+   - Requests to speak with stylist or expert
+   - Keywords: "help me choose", "not sure", "can someone help", "speak to stylist", "personalized"
+
+3. Consultation Booked → First Purchase:
+   - Expresses post-consultation confidence
+   - Makes specific order decisions with details
+   - Asks about returns/policies before finalizing
+   - Completes checkout process
+   - Confirms order placement
+   - Keywords: "ready to buy", "I'd like to order", "check out", "order went through", "when will it arrive"
+"""
+        else:
+            # Generic guidance for unknown verticals
+            return """
+Stage Detection Indicators:
+- Early stages: Questions, exploration, showing interest
+- Middle stages: Specific inquiries, consideration of options, seeking details
+- Later stages: Decision-making, commitment, taking action
+"""
+
     def classify_mission(self, user_id):
         """Analyze conversation and determine the user's current mission stage"""
         logger.info(f"Getting mission info for user_id={user_id}")
@@ -544,6 +634,9 @@ class CreditUnionAssistant:
                 # Use AI to classify the current stage based on conversation
                 conversation_history = "\n".join([f"- {memory}" for memory in past_memories[-10:]])  # Last 10 messages
 
+                # Create vertical-specific stage detection guidance based on TEST_SCENARIOS.md
+                vertical_guidance = self._get_vertical_stage_guidance(member.vertical)
+
                 stage_prompt = f"""Based on the conversation history below, determine which journey stage the member is currently in.
 
 Member Profile:
@@ -555,13 +648,17 @@ Member Profile:
 Available Journey Stages:
 {', '.join(stage_names)}
 
+{vertical_guidance}
+
 Recent Conversation:
 {conversation_history}
 
 Instructions:
 - Analyze the conversation to understand member behavior and engagement
-- Select the most appropriate stage from the available stages
-- Consider the member's actions, questions, and level of interest
+- Use the stage indicators above to identify the current stage
+- Look for specific keywords, phrases, and behavioral patterns mentioned in the indicators
+- Select the most appropriate stage from the available stages based on the conversation content
+- If the conversation shows clear signs of multiple stages, choose the MOST ADVANCED stage they've reached
 - Return ONLY the exact stage name, nothing else
 
 Current Stage:"""
