@@ -45,7 +45,6 @@ class Member:
     joined_year: int
     current_stage: str
     goal: str
-    risk_level: str
     # Optional domain-specific fields
     credit_score: Optional[int] = None
     transaction_volume: Optional[float] = None
@@ -92,37 +91,22 @@ def get_verticals() -> List[Vertical]:
             "Deepening Relationship",
             "Nurture a hesitant but high-potential saver into a confident, multi-product investor over multiple, trust-building interactions",
         ),
-        Vertical(
-            "Healthcare",
-            "Proactive Deepening",
-            "Use historical data and proactive timing to move a patient from reactive care to a personalized, preventative wellness journey",
-        ),
-        Vertical(
-            "E-commerce",
-            "Proactive Acquisition",
-            "Identify an anonymous, casual browser as a high-value prospect over two sessions, orchestrating a premium, human-led sales experience",
-        ),
     ]
 
 
 def get_journey_stages() -> List[JourneyStage]:
     """Define all journey stages across verticals"""
     return [
-        # BFSI
+        # BFSI - Investment Product Adoption
         JourneyStage("Loyal Member", "✅", "green", "BFSI"),
         JourneyStage("Opportunity Detected", "⚠️", "yellow", "BFSI"),
         JourneyStage("Consideration", "🤔", "blue", "BFSI"),
         JourneyStage("Multi-Product Member", "🌟", "gold", "BFSI"),
-        # Healthcare
-        JourneyStage("Stable Patient", "✅", "green", "Healthcare"),
-        JourneyStage("Proactive Opportunity", "⚠️", "yellow", "Healthcare"),
-        JourneyStage("Engagement", "💬", "blue", "Healthcare"),
-        JourneyStage("Deepened Relationship", "❤️", "red", "Healthcare"),
-        # E-commerce
-        JourneyStage("Prospect", "🚶", "gray", "E-commerce"),
-        JourneyStage("Qualified Lead", "🎯", "orange", "E-commerce"),
-        JourneyStage("Consultation Booked", "📅", "blue", "E-commerce"),
-        JourneyStage("First Purchase", "🛍️", "purple", "E-commerce"),
+        # BFSI - Churn Reduction
+        JourneyStage("Active Member", "✅", "green", "BFSI"),
+        JourneyStage("At Risk", "🚨", "red", "BFSI"),
+        JourneyStage("Re-engagement", "🔄", "orange", "BFSI"),
+        JourneyStage("Retained Member", "💚", "green", "BFSI"),
     ]
 
 
@@ -146,34 +130,7 @@ def sample_members() -> List[Member]:
             current_products=["Checking Account", "Savings Account"],
             current_stage="Loyal Member",
             goal="Adopt a new investment product (Mutual Fund SIP)",
-            risk_level="low",
-        ),
-        Member(
-            id="M002",
-            name="Mr. Sharma",
-            persona="Chronic Care Patient",
-            vertical="Healthcare",
-            age=58,
-            joined_year=2020,
-            current_products=["Primary Care", "Cardiology"],
-            visit_frequency="reactive",
-            current_stage="Stable Patient",
-            goal="Adopt a personalized, preventative wellness plan",
-            risk_level="medium",
-        ),
-        Member(
-            id="M003",
-            name="Priya K.",
-            persona="New Website Visitor",
-            vertical="E-commerce",
-            age=35,
-            joined_year=2024,
-            session_count=2,
-            browsing_behavior="high-intent",
-            current_stage="Prospect",
-            goal="Convert into a high-value first-time customer",
-            risk_level="low",
-        ),
+        )
     ]
 
 
@@ -191,21 +148,12 @@ def sample_missions() -> List[Mission]:
         ),
         Mission(
             "MSN002",
-            "Healthcare",
-            "Preventative Wellness Journey",
-            "Transition chronic care patient to proactive wellness",
-            "proactive_deepening",
-            ["Stable Patient", "Proactive Opportunity", "Engagement", "Deepened Relationship"],
-            "Adopt a personalized, preventative wellness plan",
-        ),
-        Mission(
-            "MSN003",
-            "E-commerce",
-            "Premium Customer Acquisition",
-            "Convert anonymous browser to first-time buyer",
-            "proactive_acquisition",
-            ["Prospect", "Qualified Lead", "Consultation Booked", "First Purchase"],
-            "Convert into a high-value first-time customer",
+            "BFSI",
+            "High-Value Retention",
+            "Identify and re-engage at-risk members to prevent churn",
+            "retention",
+            ["Active Member", "At Risk", "Re-engagement", "Retained Member"],
+            "Retain at-risk member and restore active engagement",
         ),
     ]
 
@@ -218,7 +166,7 @@ def sample_interactions() -> List[Interaction]:
     def ts(days=0, hours=0):
         return (now - timedelta(days=days, hours=hours)).strftime("%B %d, %I:%M %p")
 
-    # --- BFSI ---
+    # --- BFSI - Investment Product Adoption (Rohan) ---
     data.extend(
         [
             Interaction(
@@ -257,93 +205,46 @@ def sample_interactions() -> List[Interaction]:
                 "Consideration",
                 "Schedule advisor consultation",
             ),
+            # OPTIONAL: Uncomment below for negative test case scenario (At Risk)
+            # These interactions simulate churn signals that trigger High-Value Retention mission
+            # Interaction(
+            #     "M001",
+            #     "BFSI",
+            #     "negative_feedback",
+            #     "🚨",
+            #     "Multiple Fee Complaints",
+            #     "Member expressed dissatisfaction with account maintenance fees and compared with competitor offerings.",
+            #     ts(hours=2),
+            #     "warning",
+            #     "At Risk",
+            #     "Schedule retention call",
+            # ),
+            # Interaction(
+            #     "M001",
+            #     "BFSI",
+            #     "competitor_signal",
+            #     "⚠️",
+            #     "Competitor Comparison Detected",
+            #     "Member mentioned considering switching to another bank with zero fees.",
+            #     ts(hours=1),
+            #     "negative",
+            #     "At Risk",
+            #     "Present retention offer",
+            # ),
+            # Interaction(
+            #     "M001",
+            #     "BFSI",
+            #     "service_complaint",
+            #     "❌",
+            #     "Service Quality Concern",
+            #     "Member reported long wait times and poor customer service experience.",
+            #     ts(minutes=30),
+            #     "negative",
+            #     "At Risk",
+            #     "Escalate to relationship manager",
+            # ),
         ]
     )
-
-    # --- Healthcare ---
-    data.extend(
-        [
-            Interaction(
-                "M002",
-                "Healthcare",
-                "health_data",
-                "✅",
-                "Recent Checkup Completed",
-                "Blood pressure slightly elevated, weight up 5 lbs.",
-                ts(days=3),
-                "neutral",
-                "Stable Patient",
-                "Analyze preventative opportunities",
-            ),
-            Interaction(
-                "M002",
-                "Healthcare",
-                "proactive_trigger",
-                "⚠️",
-                "Preventative Care Opportunity Identified",
-                "Ideal candidate for cardiac wellness program.",
-                ts(days=2),
-                "positive",
-                "Proactive Opportunity",
-                "Send personalized wellness plan",
-            ),
-            Interaction(
-                "M002",
-                "Healthcare",
-                "engagement",
-                "💬",
-                "Wellness Program Email Opened",
-                "Clicked 'Learn More' on cardiac wellness email.",
-                ts(hours=8),
-                "positive",
-                "Engagement",
-                "Schedule consultation call",
-            ),
-        ]
-    )
-
-    # --- E-commerce ---
-    data.extend(
-        [
-            Interaction(
-                "M003",
-                "E-commerce",
-                "browsing",
-                "🚶",
-                "First Visit - Premium Category",
-                "Browsed luxury handbags for 8 minutes, viewed 5 products.",
-                ts(days=2),
-                "neutral",
-                "Prospect",
-                "Track return visit",
-            ),
-            Interaction(
-                "M003",
-                "E-commerce",
-                "intent_signal",
-                "🎯",
-                "Return Visit - High Intent Behavior",
-                "Added ₹45,000 handbag to cart and checked size guide.",
-                ts(hours=6),
-                "positive",
-                "Qualified Lead",
-                "Offer personal shopping consultation",
-            ),
-            Interaction(
-                "M003",
-                "E-commerce",
-                "engagement",
-                "📅",
-                "Virtual Consultation Scheduled",
-                "Booked 30-min video consultation with style advisor.",
-                ts(hours=2),
-                "positive",
-                "Consultation Booked",
-                "Prepare personalized recommendations",
-            ),
-        ]
-    )
-
     return data
 
 
