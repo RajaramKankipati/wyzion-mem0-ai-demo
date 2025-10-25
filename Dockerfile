@@ -7,10 +7,15 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    POETRY_VERSION=1.7.1 \
+    POETRY_VERSION=1.8.3 \
     POETRY_HOME="/opt/poetry" \
     POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install poetry
 RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
@@ -18,8 +23,8 @@ RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 # Copy dependency files
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies
-RUN poetry install --only main --no-root
+# Install dependencies (without dev dependencies)
+RUN poetry install --no-root --no-dev
 
 # Copy application code
 COPY . .
