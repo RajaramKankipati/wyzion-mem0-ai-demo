@@ -14,6 +14,8 @@ uvicorn = {extras = ["standard"], version = "^0.37.0"}
 python-multipart = "^0.0.20"
 mem0ai = "^1.0.0"
 openai = "^2.5.0"
+python-dotenv = "^1.0.0"
+gunicorn = "^21.2.0"
 
 
 [tool.poetry.group.dev.dependencies]

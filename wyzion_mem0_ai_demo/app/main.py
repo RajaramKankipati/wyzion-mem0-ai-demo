@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from threading import Lock
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file
 from openai import OpenAI
 
@@ -20,6 +21,9 @@ from wyzion_mem0_ai_demo.tools.memory_tools import (
 )
 from wyzion_mem0_ai_demo.tools.rag_system import get_rag_system, initialize_rag_system
 from wyzion_mem0_ai_demo.utils.logger import configure_third_party_loggers, get_logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -1048,9 +1052,15 @@ def all_mission_statuses():
 
 
 if __name__ == "__main__":
+    # Get port and debug mode from environment variables
+    port = int(os.environ.get("PORT", 5000))
+    debug_mode = os.environ.get("FLASK_ENV", "development") == "development"
+
     logger.info("=" * 60)
     logger.info("Starting Wyzion Mem0 AI Demo Application")
-    logger.info("Flask Debug Mode: True")
-    logger.info("Server Port: 5000")
+    logger.info(f"Flask Debug Mode: {debug_mode}")
+    logger.info(f"Server Port: {port}")
+    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
     logger.info("=" * 60)
-    app.run(debug=True, port=5000)
+
+    app.run(debug=debug_mode, host="0.0.0.0", port=port)
