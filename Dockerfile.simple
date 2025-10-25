@@ -38,4 +38,4 @@ EXPOSE 5000
 
 # Run the application with gunicorn
 # Use shell form to allow $PORT variable expansion
-CMD gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4 --timeout 120 wyzion_mem0_ai_demo.app.main:app
+CMD gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120 wyzion_mem0_ai_demo.app.main:app
