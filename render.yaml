@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: wyzion-mem0-ai-demo
+    env: docker
+    dockerfilePath: ./Dockerfile.simple
+    plan: free
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MEM0_API_KEY
+        sync: false
+      - key: FLASK_ENV
+        value: production
+    healthCheckPath: /
