@@ -1,0 +1,40 @@
+# Simple Dockerfile without Poetry - use this if Poetry fails
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY pyproject.toml ./
+
+# Install dependencies directly with pip
+RUN pip install --no-cache-dir \
+    flask==3.1.2 \
+    pandas==2.3.3 \
+    uvicorn[standard]==0.37.0 \
+    python-multipart==0.0.20 \
+    mem0ai==1.0.0 \
+    openai==2.5.0 \
+    python-dotenv==1.0.0 \
+    gunicorn==21.2.0
+
+# Copy application code
+COPY . .
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Expose port
+EXPOSE 5000
+
+# Run the application with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "120", "wyzion_mem0_ai_demo.app.main:app"]

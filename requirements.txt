@@ -1,0 +1,8 @@
+flask==3.1.2
+pandas==2.3.3
+uvicorn[standard]==0.37.0
+python-multipart==0.0.20
+mem0ai==1.0.0
+openai==2.5.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
