@@ -6,15 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from threading import Lock
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file
 from openai import OpenAI
 
-from wyzion_mem0_ai_demo.data.models import (
-    get_member_interactions,
-    get_stages_by_vertical,
-    sample_members,
-    sample_missions,
-)
+from wyzion_mem0_ai_demo.data.models import get_member_interactions, sample_members, sample_missions
 from wyzion_mem0_ai_demo.helper.json_formatting import clean_text
 from wyzion_mem0_ai_demo.tools.memory_tools import (
     add_member_facts,
@@ -25,6 +21,9 @@ from wyzion_mem0_ai_demo.tools.memory_tools import (
 )
 from wyzion_mem0_ai_demo.tools.rag_system import get_rag_system, initialize_rag_system
 from wyzion_mem0_ai_demo.utils.logger import configure_third_party_loggers, get_logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -178,9 +177,9 @@ def async_add_memory(messages_json: str, user_id: str):
 # --------------------------
 # AI Assistant Agent Class
 # --------------------------
-class CreditUnionAssistant:
+class BankingAssistant:
     def __init__(self):
-        logger.info("Initializing CreditUnionAssistant")
+        logger.info("Initializing BankingAssistant")
         try:
             self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
             logger.info("OpenAI client initialized successfully")
@@ -205,17 +204,17 @@ class CreditUnionAssistant:
             # Don't raise - app can still work without RAG
 
         self.system_message = (
-            "You are a helpful AI Assistant that adapts to different industries (BFSI, Healthcare, E-commerce). "
+            "You are a helpful AI Banking Assistant specialized in financial services and customer retention. "
             "When past conversation history is provided, seamlessly continue the conversation as if it's an ongoing dialogue. "
             "Reference previous discussions naturally, acknowledge the user's past questions and concerns, "
             "and build upon what was previously discussed without explicitly saying 'based on our previous conversation' unless contextually appropriate. "
-            "Make the user feel understood and valued by demonstrating awareness of their journey. "
-            "Provide personalized, helpful, professional, and accurate guidance that feels like a warm continuation of an existing relationship. "
-            "When member/user-specific facts are available in the conversation history (such as name, age, vertical, persona, current stage, goals), "
-            "use them naturally to provide personalized responses appropriate to their industry context. "
+            "Make the user feel understood and valued by demonstrating awareness of their financial journey. "
+            "Provide personalized, helpful, professional, and accurate financial guidance that feels like a warm continuation of an existing relationship. "
+            "When member-specific facts are available in the conversation history (such as name, age, persona, current stage, goals, credit score, transaction volume), "
+            "use them naturally to provide personalized banking and financial advice. "
             "\n\nIMPORTANT: Keep responses brief and concise (2-3 sentences max). Provide quick, actionable insights."
         )
-        logger.info("CreditUnionAssistant initialized successfully")
+        logger.info("BankingAssistant initialized successfully")
 
     def initialize_member_facts_for_all(self):
         """Initialize member facts in memory for all members. This is optional and can be called during setup."""
@@ -240,6 +239,99 @@ class CreditUnionAssistant:
         except Exception as e:
             logger.error(f"Error initializing member facts: {e}", exc_info=True)
             return {"successful": 0, "failed": 0, "total": 0, "error": str(e)}
+
+    def _determine_priority_mission(self, question, user_id):
+        """Determine which mission should be prioritized based on the question and context"""
+        logger.info(f"Determining priority mission for user_id={user_id}")
+
+        try:
+            # Get member information
+            members = sample_members()
+            member = next((m for m in members if m.id == user_id), None)
+
+            if not member:
+                return None
+
+            # Get all missions
+            missions = sample_missions()
+            member_missions = [m for m in missions if m.vertical == member.vertical]
+
+            if not member_missions:
+                return None
+
+            # Get conversation history and interactions
+            past_memories = self.get_memories(user_id=user_id)
+            conversation_context = (
+                "\n".join([f"- {memory}" for memory in past_memories[-5:]])
+                if past_memories
+                else "No previous conversation"
+            )
+
+            # Get member interactions for additional context
+            interactions = get_member_interactions(user_id)
+            interaction_signals = ""
+            if interactions:
+                interaction_signals = "\n\nRecent Interaction Signals:\n"
+                for interaction in interactions[-3:]:  # Last 3 interactions
+                    interaction_signals += f"- [{interaction.signal.upper()}] {interaction.title}\n"
+                interaction_signals += "\nNote: NEGATIVE/WARNING signals indicate retention priority; POSITIVE signals may indicate growth opportunity.\n"
+
+            # Use AI to determine priority mission
+            priority_prompt = f"""Based on the user's current question, recent conversation history, and interaction signals, determine which mission should be the PRIORITY for this response.
+
+Available Missions:
+{chr(10).join([f"- {m.title}: {m.description}" for m in member_missions])}
+
+Mission Priority Guidelines:
+1. HIGH-VALUE RETENTION takes priority if:
+   - User expresses dissatisfaction, complaints, or concerns about services/fees
+   - User mentions competitors or thinking of leaving
+   - User shows signs of decreased engagement or frustration
+   - User needs immediate attention to prevent churn
+   - Interaction signals show NEGATIVE or WARNING patterns
+
+2. INVESTMENT PRODUCT ADOPTION takes priority if:
+   - User asks about investment options, savings growth, or financial planning
+   - User shows interest in new products or services
+   - User is exploring ways to grow wealth
+   - No urgent retention issues are present
+   - Interaction signals show POSITIVE engagement
+
+Recent Conversation:
+{conversation_context}
+{interaction_signals}
+
+Current Question: {question}
+
+Instructions:
+- Analyze the question, conversation context, AND interaction signals carefully
+- Determine which mission is MOST CRITICAL right now
+- Return ONLY the exact mission title, nothing else
+
+Priority Mission:"""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": priority_prompt}],
+                max_tokens=50,
+                temperature=0.3,
+            )
+
+            priority_mission_title = response.choices[0].message.content.strip()
+
+            # Find the mission object
+            priority_mission = next((m for m in member_missions if m.title == priority_mission_title), None)
+
+            if priority_mission:
+                logger.info(f"Priority mission determined: {priority_mission.title}")
+                return priority_mission
+            else:
+                logger.warning(f"Could not match priority mission '{priority_mission_title}', using first mission")
+                return member_missions[0]
+
+        except Exception as e:
+            logger.error(f"Error determining priority mission: {e}", exc_info=True)
+            return None
 
     def _generate_response(self, messages):
         """Generate a response from the AI without tool calling"""
@@ -266,6 +358,14 @@ class CreditUnionAssistant:
         """
         logger.info(f"Processing question for user_id={user_id}")
 
+        # STEP 1: Determine priority mission BEFORE responding
+        priority_mission = self._determine_priority_mission(question, user_id)
+
+        if priority_mission:
+            logger.info(f"🎯 PRIORITY MISSION: {priority_mission.title}")
+        else:
+            logger.warning("No priority mission determined")
+
         # Get past conversations from memory
         past_memories = self.get_memories(user_id=user_id)
         logger.debug(f"Retrieved {len(past_memories)} past memories for user_id={user_id}")
@@ -288,8 +388,36 @@ class CreditUnionAssistant:
 
         logger.info("Rag context is as follows %s", rag_context)
 
-        # Build enhanced system message with conversation history and knowledge base
+        # STEP 2: Build mission-focused system message
         base_message = self.system_message
+
+        # Add priority mission context to tune the response
+        if priority_mission:
+            mission_context = f"""
+
+=== PRIORITY MISSION (CRITICAL) ===
+Mission: {priority_mission.title}
+Description: {priority_mission.description}
+Goal: {priority_mission.end_goal}
+
+IMPORTANT INSTRUCTIONS FOR THIS RESPONSE:
+- This is the CRITICAL MISSION that requires immediate attention
+- Tailor your response to address this mission's objectives
+- If the mission is "High-Value Retention", prioritize:
+  * Addressing concerns immediately and empathetically
+  * Offering solutions to prevent churn
+  * Showing value and building trust
+  * Being proactive about resolving issues
+- If the mission is "Investment Product Adoption", prioritize:
+  * Educating about investment opportunities
+  * Building confidence in financial products
+  * Addressing concerns about risk
+  * Guiding towards next steps
+
+Your response MUST be tuned to advance this priority mission.
+=== End Priority Mission Context ===
+"""
+            base_message += mission_context
 
         # Add knowledge base context if available
         if rag_context:
@@ -311,20 +439,20 @@ class CreditUnionAssistant:
                 f"Remember: Continue this conversation naturally. The user doesn't need to be reminded that you have their history - "
                 f"just demonstrate it through your responses by naturally building on what was discussed before."
             )
-            logger.debug("Enhanced system message with past conversation context and RAG")
+            logger.debug("Enhanced system message with past conversation context, RAG, and priority mission")
         else:
             enhanced_system_message = (
                 f"{base_message}\n\n"
                 f"This is a new conversation with no prior history. Greet the user warmly and help them get started."
             )
-            logger.debug("No past memories found, using default system message with RAG context")
+            logger.debug("No past memories found, using default system message with RAG context and priority mission")
 
         messages = [
             {"role": "system", "content": enhanced_system_message},
             {"role": "user", "content": question},
         ]
 
-        # Generate response from AI
+        # Generate response from AI (now tuned to priority mission)
         answer = self._generate_response(messages)
 
         # Store the conversation in memory asynchronously (non-blocking)
@@ -351,6 +479,8 @@ class CreditUnionAssistant:
             member_name = "Unknown Member"
             member_data = {}
             lifecycle_state = "No Active Journey"
+            priority_mission = None
+            all_mission_statuses = []
         else:
             member_data = asdict(member)  # Convert to dict for compatibility
             member_name = member.name
@@ -368,6 +498,21 @@ class CreditUnionAssistant:
             else:
                 lifecycle_state = current_stage if current_stage != "Unknown" else "No Active Journey"
 
+            # Get priority mission and all mission statuses for analysis
+            all_mission_statuses = self.get_all_mission_statuses(user_id)
+
+            # Determine priority mission for this summary
+            memories = self.get_memories(user_id)
+            if memories:
+                # Use last message to determine current priority
+                last_message = memories[-1] if memories else ""
+                priority_mission = self._determine_priority_mission(last_message, user_id)
+                logger.info(
+                    f"🎯 Priority mission for summary: {priority_mission.title if priority_mission else 'None'}"
+                )
+            else:
+                priority_mission = None
+
         memories = self.get_memories(user_id)
 
         # Get member interactions
@@ -379,59 +524,91 @@ class CreditUnionAssistant:
                 "member_name": member_name,
                 "lifecycle_state": lifecycle_state,
                 "analysis": "No conversation history yet. Start engaging to build insights.",
-                "interactions": interactions,
+                "interactions": [asdict(i) for i in interactions],
             }
 
         # Get conversation history text
         conversation_text = "\n".join(memories)
 
-        # Get member details for context based on vertical
+        # Get member details for banking context
         member_context = ""
         if member_data:
-            vertical = member_data.get("vertical", "")
+            vertical = member_data.get("vertical", "BFSI")
             member_context = f"\n\nMember Details:\n- Name: {member_data.get('name')}\n"
             member_context += f"- Vertical: {vertical}\n"
             member_context += f"- Persona: {member_data.get('persona', 'N/A')}\n"
             member_context += f"- Age: {member_data.get('age')}\n"
             member_context += f"- Current Stage: {member_data.get('current_stage')}\n"
             member_context += f"- Goal: {member_data.get('goal', 'N/A')}\n"
+            member_context += f"- Credit Score: {member_data.get('credit_score', 'N/A')}\n"
+            member_context += f"- Transaction Volume: ${member_data.get('transaction_volume', 0):,.2f}\n"
+            member_context += f"- Current Products: {', '.join(member_data.get('current_products', []))}\n"
+            member_context += f"- Risk Level: {member_data.get('risk_level', 'N/A')}\n"
 
-            # Add vertical-specific details
-            if vertical == "BFSI":
-                member_context += f"- Credit Score: {member_data.get('credit_score', 'N/A')}\n"
-                member_context += f"- Transaction Volume: ${member_data.get('transaction_volume', 0):,.2f}\n"
-                member_context += f"- Current Products: {', '.join(member_data.get('current_products', []))}\n"
-            elif vertical == "Healthcare":
-                member_context += f"- Visit Frequency: {member_data.get('visit_frequency', 'N/A')}\n"
-                member_context += f"- Current Products: {', '.join(member_data.get('current_products', []))}\n"
-            elif vertical == "E-commerce":
-                member_context += f"- Session Count: {member_data.get('session_count', 'N/A')}\n"
-                member_context += f"- Browsing Behavior: {member_data.get('browsing_behavior', 'N/A')}\n"
+        # Build mission status context
+        mission_status_context = ""
+        if all_mission_statuses:
+            mission_status_context = "\n\nAll Mission Statuses:\n"
+            for mission_status in all_mission_statuses:
+                mission_status_context += f"- {mission_status['mission_title']}: {mission_status['current_stage']}\n"
 
-        # Create an enhanced analysis using the LLM
+        # Build priority mission context
+        priority_mission_context = ""
+        if priority_mission:
+            priority_mission_context = "\n\n🎯 PRIORITY MISSION (CRITICAL):\n"
+            priority_mission_context += f"- Mission: {priority_mission.title}\n"
+            priority_mission_context += f"- Description: {priority_mission.description}\n"
+            priority_mission_context += f"- Goal: {priority_mission.end_goal}\n"
+            # Find the current stage for this priority mission
+            priority_mission_stage = "Unknown"
+            for mission_status in all_mission_statuses:
+                if mission_status["mission_title"] == priority_mission.title:
+                    priority_mission_stage = mission_status["current_stage"]
+                    break
+            priority_mission_context += f"- Current Stage: {priority_mission_stage}\n"
+
+        # Create an enhanced analysis using the LLM focused on banking
         vertical = member_data.get("vertical", "BFSI") if member_data else "BFSI"
 
-        # Determine risk metric based on vertical
-        if vertical == "BFSI":
+        # Determine risk metric based on member's mission/goal
+        risk_level = member_data.get("risk_level", "low") if member_data else "low"
+        if risk_level == "high" or "churn" in lifecycle_state.lower() or "at risk" in lifecycle_state.lower():
             risk_metric = "churn probability"
-        elif vertical == "Healthcare":
-            risk_metric = "patient attrition risk"
-        elif vertical == "E-commerce":
-            risk_metric = "conversion probability"
         else:
-            risk_metric = "engagement risk"
+            risk_metric = "investment readiness score"
+
+        # Build interaction history context for analysis
+        interaction_analysis_context = ""
+        if interactions:
+            interaction_analysis_context = "\n\nRecent Interaction Signals:\n"
+            for interaction in interactions[-5:]:  # Last 5 interactions
+                interaction_analysis_context += f"- [{interaction.timestamp}] {interaction.signal.upper()}: {interaction.title} - {interaction.description}\n"
+            interaction_analysis_context += "\nNote: These interactions show behavioral patterns and sentiment signals that should inform your analysis.\n"
 
         analysis_prompt = (
-            f"You are Wyzion AI, an advanced analytics system for {vertical}. "
-            f"Analyze the user's data and provide a BRIEF analysis (100 words max) with:\n"
-            f"1. {risk_metric} (percentage)\n"
-            f"2. Key behavioral pattern\n"
-            f"3. Recommended next action\n\n"
-            f"Member Context:{member_context}\n\n"
+            f"You are Wyzion AI, an advanced analytics system for Banking & Financial Services. "
+            f"Analyze the member's data and provide a BRIEF analysis in this EXACT format:\n\n"
+            f"Recommendation: [One clear, actionable recommendation for what should be done next. "
+            f"Be specific and direct - focus on the immediate action needed]\n\n"
+            f"Wyzion explains why: [Brief explanation including the {risk_metric} percentage and key behavioral insight]\n\n"
+            f"Member Context:{member_context}\n"
+            f"{mission_status_context}"
+            f"{priority_mission_context}\n"
             f"Current Journey: {lifecycle_state}\n\n"
-            f"Conversation History:\n{conversation_text}\n\n"
-            f"IMPORTANT: Keep response to 2-3 sentences max. Be concise and actionable. "
-            f"Format: 'Wyzion has assigned a [X]% {risk_metric}. [Key insight]. [Next action].'"
+            f"Conversation History:\n{conversation_text}\n"
+            f"{interaction_analysis_context}\n"
+            f"IMPORTANT INSTRUCTIONS:\n"
+            f"- Keep response concise (2-3 sentences total)\n"
+            f"- Start with 'Recommendation:' on first line\n"
+            f"- Follow with 'Wyzion explains why:' on next line\n"
+            f"- Include the {risk_metric} percentage in the explanation\n"
+            f"- Consider interaction signals (positive/negative/warning) when forming your analysis\n"
+            f"- DO NOT explicitly mention mission names (like 'High-Value Retention' or 'Investment Product Adoption')\n"
+            f"- DO NOT mention stages (like 'At Risk', 'Consideration', etc.)\n"
+            f"- Use the mission and stage information internally to inform your recommendation\n"
+            f"- Focus on natural, actionable business language\n"
+            f"- Be specific about what action to take (e.g., 'Schedule retention call', 'Waive account fees', 'Recommend SIP investment')\n"
+            f"- Prioritize based on the PRIORITY MISSION context provided above"
         )
 
         try:
@@ -441,7 +618,7 @@ class CreditUnionAssistant:
                 messages=[
                     {
                         "role": "system",
-                        "content": f"You are Wyzion AI, a sophisticated analytics engine that provides actionable insights for {vertical} organizations. Always be brief and concise.",
+                        "content": "You are Wyzion AI, a sophisticated analytics engine that provides actionable insights for Banking & Financial Services organizations. Always be brief and concise.",
                     },
                     {"role": "user", "content": analysis_prompt},
                 ],
@@ -455,7 +632,7 @@ class CreditUnionAssistant:
                 "member_name": member_name,
                 "lifecycle_state": lifecycle_state,
                 "analysis": analysis,
-                "interactions": interactions,
+                "interactions": [asdict(i) for i in interactions],
             }
         except Exception as e:
             logger.error(f"Error generating conversation summary: {e}", exc_info=True)
@@ -507,16 +684,16 @@ class CreditUnionAssistant:
             response.stream_to_file(out_file)
         return out_file
 
-    def _get_vertical_stage_guidance(self, vertical):
+    def _get_vertical_stage_guidance(self):
         """
-        Get vertical-specific stage detection guidance based on TEST_SCENARIOS.md
+        Get stage detection guidance for banking missions
 
         Returns detailed indicators for each stage transition to improve accuracy
         """
-        if vertical == "BFSI":
-            return """
-Stage Detection Indicators for BFSI:
+        return """
+Stage Detection Indicators for BFSI Banking:
 
+INVESTMENT PRODUCT ADOPTION MISSION:
 1. Loyal Member → Opportunity Detected:
    - Member expresses financial goals or savings patterns
    - Asks about investment options, mutual funds, or better returns
@@ -536,108 +713,75 @@ Stage Detection Indicators for BFSI:
    - Makes specific investment decisions (e.g., "balanced fund, 5000 per month")
    - Confirms first investment or SIP setup
    - Keywords: "ready to start", "next step", "set this up", "first installment", "went through"
-"""
-        elif vertical == "Healthcare":
-            return """
-Stage Detection Indicators for Healthcare:
 
-1. Stable Patient → Proactive Opportunity:
-   - Expresses concerns about health metrics (blood pressure, weight)
-   - Asks about prevention or avoiding future health problems
-   - Shows proactive mindset about health management
-   - Interested in lifestyle changes or wellness
-   - Keywords: "should I be worried", "prevent", "proactive", "avoid", "future health"
+HIGH-VALUE RETENTION MISSION:
+1. Active Member → At Risk:
+   - Expresses dissatisfaction with fees, services, or account features
+   - Mentions competitor banks or compares services
+   - Discusses reducing account usage or closing account
+   - Shows decreased engagement or transaction activity
+   - Keywords: "too expensive", "other banks", "thinking of switching", "not using", "close account"
 
-2. Proactive Opportunity → Engagement:
-   - Asks specific questions about wellness program details
-   - Inquires about personalization and customization of programs
-   - Discusses time commitment and program requirements
-   - Wants to know expected results and benefits
-   - Keywords: "wellness program", "what does it include", "customized", "time commitment", "results"
+2. At Risk → Re-engagement:
+   - Shows interest in retention offers or benefits
+   - Asks about fee waivers or account upgrades
+   - Responds positively to personalized outreach
+   - Engages with relationship manager or support
+   - Keywords: "what can you offer", "waive fees", "better deal", "interested in", "tell me more"
 
-3. Engagement → Deepened Relationship:
-   - Decides to enroll in wellness program
-   - Reports starting wellness activities (diet plan, exercise)
-   - Shares progress updates and positive outcomes
-   - Expresses commitment to long-term wellness
-   - Keywords: "enroll", "I'd like to start", "I've started", "following the plan", "continue long-term"
-"""
-        elif vertical == "E-commerce":
-            return """
-Stage Detection Indicators for E-commerce:
-
-1. Prospect → Qualified Lead:
-   - Looks for specific product types with clear intent
-   - Mentions budget range (especially high-value: 40-50k+)
-   - Asks for recommendations with specific requirements
-   - Compares products or brands
-   - Keywords: "looking for", "budget around", "recommend", "tell me more", "comparing"
-
-2. Qualified Lead → Consultation Booked:
-   - Seeks expert advice or personal guidance
-   - Expresses concerns about size, fit, or customization
-   - Indicates this is a significant purchase decision
-   - Requests to speak with stylist or expert
-   - Keywords: "help me choose", "not sure", "can someone help", "speak to stylist", "personalized"
-
-3. Consultation Booked → First Purchase:
-   - Expresses post-consultation confidence
-   - Makes specific order decisions with details
-   - Asks about returns/policies before finalizing
-   - Completes checkout process
-   - Confirms order placement
-   - Keywords: "ready to buy", "I'd like to order", "check out", "order went through", "when will it arrive"
-"""
-        else:
-            # Generic guidance for unknown verticals
-            return """
-Stage Detection Indicators:
-- Early stages: Questions, exploration, showing interest
-- Middle stages: Specific inquiries, consideration of options, seeking details
-- Later stages: Decision-making, commitment, taking action
+3. Re-engagement → Retained Member:
+   - Accepts retention offer or upgraded service
+   - Confirms continued use of account and services
+   - Expresses renewed satisfaction with the bank
+   - Plans to maintain or increase banking relationship
+   - Keywords: "sounds good", "I'll stay", "satisfied", "makes sense", "continue banking"
 """
 
-    def classify_mission(self, user_id):
-        """Analyze conversation and determine the user's current mission stage"""
-        logger.info(f"Getting mission info for user_id={user_id}")
+    def get_all_mission_statuses(self, user_id):
+        """Analyze conversation and determine the status for all missions"""
+        logger.info(f"Getting all mission statuses for user_id={user_id}")
 
         try:
             # Get member information
-            members = sample_members()  # Returns List[Member]
+            members = sample_members()
             member = next((m for m in members if m.id == user_id), None)
 
             if member is None:
                 logger.warning(f"Member with id={user_id} not found")
-                return {"mission_id": "Unknown", "stage": "Unknown", "explanation": "Member not found"}
+                return []
 
-            # Get mission based on member's vertical
-            missions = sample_missions()  # Returns List[Mission]
-            mission = next((m for m in missions if m.vertical == member.vertical), None)
+            # Get all missions for this member's vertical
+            missions = sample_missions()
+            member_missions = [m for m in missions if m.vertical == member.vertical]
 
-            if mission is None:
-                logger.warning(f"No mission found for vertical={member.vertical}")
-                return {
-                    "mission_id": "Unknown",
-                    "stage": member.current_stage,
-                    "explanation": f"No mission found for vertical: {member.vertical}",
-                }
-
-            # Get conversation history to analyze stage
+            # Get conversation history and interactions
             past_memories = self.get_memories(user_id=user_id)
+            interactions = get_member_interactions(user_id)
 
-            # Determine current stage based on conversation
-            if past_memories:
-                # Get available stages for this vertical
-                stages = get_stages_by_vertical(member.vertical)
-                stage_names = [s.stage for s in stages]
+            mission_statuses = []
 
-                # Use AI to classify the current stage based on conversation
-                conversation_history = "\n".join([f"- {memory}" for memory in past_memories[-10:]])  # Last 10 messages
+            for mission in member_missions:
+                # Determine status based on conversation
+                if past_memories:
+                    # Get stages for this mission
+                    stage_names = mission.stages
 
-                # Create vertical-specific stage detection guidance based on TEST_SCENARIOS.md
-                vertical_guidance = self._get_vertical_stage_guidance(member.vertical)
+                    conversation_history = "\n".join([f"- {memory}" for memory in past_memories[-10:]])
 
-                stage_prompt = f"""Based on the conversation history below, determine which journey stage the member is currently in.
+                    # Get stage detection guidance
+                    vertical_guidance = self._get_vertical_stage_guidance()
+
+                    # Build interaction history context
+                    interaction_context = ""
+                    if interactions:
+                        interaction_context = "\n\nRecent Interactions:\n"
+                        for interaction in interactions[-5:]:  # Last 5 interactions
+                            interaction_context += (
+                                f"- [{interaction.timestamp}] {interaction.title}: {interaction.description}\n"
+                            )
+
+                    # Create a prompt to analyze this specific mission
+                    status_prompt = f"""Based on the conversation history and interaction signals, determine the current status for this mission.
 
 Member Profile:
 - Name: {member.name}
@@ -645,69 +789,70 @@ Member Profile:
 - Persona: {member.persona}
 - Goal: {member.goal}
 
-Available Journey Stages:
-{', '.join(stage_names)}
+Mission: {mission.title}
+Available Stages: {', '.join(stage_names)}
 
 {vertical_guidance}
 
 Recent Conversation:
 {conversation_history}
+{interaction_context}
 
 Instructions:
-- Analyze the conversation to understand member behavior and engagement
-- Use the stage indicators above to identify the current stage
-- Look for specific keywords, phrases, and behavioral patterns mentioned in the indicators
-- Select the most appropriate stage from the available stages based on the conversation content
-- If the conversation shows clear signs of multiple stages, choose the MOST ADVANCED stage they've reached
-- Return ONLY the exact stage name, nothing else
+- Analyze BOTH the conversation and interaction signals to understand the member's status for this specific mission
+- Interactions provide behavioral signals (positive/negative/warning/neutral) that indicate member sentiment
+- Return ONLY the exact stage name from the available stages
+- If there's no clear indication in the conversation, use the first stage: {stage_names[0]}
 
 Current Stage:"""
 
-                try:
-                    response = self.client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[{"role": "user", "content": stage_prompt}],
-                        max_tokens=50,
-                        temperature=0.3,
-                    )
-                    detected_stage = response.choices[0].message.content.strip()
+                    try:
+                        response = self.client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[{"role": "user", "content": status_prompt}],
+                            max_tokens=50,
+                            temperature=0.3,
+                        )
+                        detected_stage = response.choices[0].message.content.strip()
 
-                    # Validate that the detected stage is in the available stages
-                    if detected_stage in stage_names:
-                        current_stage = detected_stage
-                        logger.info(f"AI detected stage: {current_stage} for user_id={user_id}")
-                        # Update the stage tracker
-                        stage_tracker.update_stage(user_id, current_stage)
-                    else:
-                        # Use tracked stage if available, otherwise default
-                        current_stage = stage_tracker.get_stage(user_id, member.current_stage)
-                        logger.warning(f"AI returned invalid stage '{detected_stage}', using: {current_stage}")
-                except Exception as e:
-                    logger.error(f"Error detecting stage with AI: {e}")
-                    current_stage = stage_tracker.get_stage(user_id, member.current_stage)
-            else:
-                # No conversation yet, use default stage or tracked stage
-                current_stage = stage_tracker.get_stage(user_id, member.current_stage)
-                logger.info(f"No conversation history, using stage: {current_stage}")
+                        # Validate stage
+                        if detected_stage in stage_names:
+                            current_stage = detected_stage
+                        else:
+                            current_stage = stage_names[0]
+                            logger.warning(
+                                f"AI returned invalid stage '{detected_stage}', using default: {current_stage}"
+                            )
 
-            logger.info(f"Retrieved mission: {mission.title} ({mission.mission_id}), Stage: {current_stage}")
+                    except Exception as e:
+                        logger.error(f"Error detecting stage for mission {mission.title}: {e}")
+                        current_stage = stage_names[0]
+                else:
+                    # No conversation yet, use first stage
+                    current_stage = mission.stages[0]
 
-            return {
-                "mission_id": mission.title,  # Return mission title instead of ID
-                "stage": current_stage,
-                "explanation": f"Member is currently at '{current_stage}' stage in their {mission.title} journey. Goal: {member.goal}",
-            }
+                mission_statuses.append(
+                    {
+                        "mission_id": mission.mission_id,
+                        "mission_title": mission.title,
+                        "current_stage": current_stage,
+                        "stages": mission.stages,
+                    }
+                )
+
+            logger.info(f"Retrieved {len(mission_statuses)} mission statuses for user_id={user_id}")
+            return mission_statuses
 
         except Exception as e:
-            logger.error(f"Error getting mission info: {e}", exc_info=True)
-            return {"mission_id": "Unknown", "stage": "Unknown", "explanation": f"Error: {str(e)}"}
+            logger.error(f"Error getting mission statuses: {e}", exc_info=True)
+            return []
 
 
 # --------------------------
 # Flask App
 # --------------------------
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), "../templates"))
-ai_assistant = CreditUnionAssistant()
+ai_assistant = BankingAssistant()
 
 # Auto-initialize member facts on startup
 logger.info("Auto-initializing member facts in mem0...")
@@ -868,31 +1013,6 @@ def download(filename):
     return send_file(filename, as_attachment=True)
 
 
-@app.post("/classify_mission")
-def classify_mission():
-    try:
-        data = request.json
-        user_id = data.get("user_id", "")
-
-        if not user_id:
-            logger.warning("user_id missing in request")
-            return jsonify({"error": "user_id missing"}), 400
-
-        logger.info(f"Classifying mission for user_id={user_id}")
-        response = ai_assistant.classify_mission(user_id=user_id)
-        logger.info(f"Mission classified: {response['mission_id']}, Stage: {response['stage']}")
-        return jsonify(
-            {
-                "mission_id": response["mission_id"],
-                "stage": response["stage"],
-                "explanation": response["explanation"],
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error in classify_mission endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
-
-
 @app.route("/conversation_summary", methods=["GET"])
 def conversation_summary():
     """Get a detailed insight summary with member info and Wyzion's analysis"""
@@ -912,32 +1032,9 @@ def conversation_summary():
         return jsonify({"error": "Internal server error"}), 500
 
 
-@app.route("/get_stages", methods=["GET"])
-def get_stages():
-    """Get journey stages for a specific vertical"""
-    try:
-        vertical = request.args.get("vertical", "")
-
-        if not vertical:
-            logger.warning("vertical missing in request")
-            return jsonify({"error": "vertical missing"}), 400
-
-        logger.info(f"Fetching stages for vertical={vertical}")
-        stages = get_stages_by_vertical(vertical)  # Returns List[JourneyStage]
-
-        # Convert dataclasses to dicts
-        stages_list = [asdict(stage) for stage in stages]
-
-        logger.info(f"Retrieved {len(stages_list)} stages for vertical={vertical}")
-        return jsonify({"stages": stages_list})
-    except Exception as e:
-        logger.error(f"Error in get_stages endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
-
-
-@app.route("/user_intent", methods=["GET"])
-def user_intent():
-    """Get the user's current mission and stage"""
+@app.route("/all_mission_statuses", methods=["GET"])
+def all_mission_statuses():
+    """Get all mission statuses for a user"""
     try:
         user_id = request.args.get("user_id", "")
 
@@ -945,19 +1042,25 @@ def user_intent():
             logger.warning("user_id missing in request")
             return jsonify({"error": "user_id missing"}), 400
 
-        logger.info(f"Getting user intent for user_id={user_id}")
-        mission_data = ai_assistant.classify_mission(user_id=user_id)
-        logger.info(f"User intent retrieved: {mission_data['mission_id']}")
-        return jsonify(mission_data)
+        logger.info(f"Getting all mission statuses for user_id={user_id}")
+        statuses = ai_assistant.get_all_mission_statuses(user_id=user_id)
+        logger.info(f"Retrieved {len(statuses)} mission statuses")
+        return jsonify({"missions": statuses})
     except Exception as e:
-        logger.error(f"Error in user_intent endpoint: {e}", exc_info=True)
+        logger.error(f"Error in all_mission_statuses endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 
 if __name__ == "__main__":
+    # Get port and debug mode from environment variables
+    port = int(os.environ.get("PORT", 5000))
+    debug_mode = os.environ.get("FLASK_ENV", "development") == "development"
+
     logger.info("=" * 60)
     logger.info("Starting Wyzion Mem0 AI Demo Application")
-    logger.info("Flask Debug Mode: True")
-    logger.info("Server Port: 5000")
+    logger.info(f"Flask Debug Mode: {debug_mode}")
+    logger.info(f"Server Port: {port}")
+    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
     logger.info("=" * 60)
-    app.run(debug=True, port=5000)
+
+    app.run(debug=debug_mode, host="0.0.0.0", port=port)

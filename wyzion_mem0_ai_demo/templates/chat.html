@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Credit Union AI Assistant</title>
+<title>Wyzion Banking AI Assistant</title>
 <style>
     * {
         margin: 0;
@@ -161,6 +161,72 @@
         font-weight: 600;
     }
 
+    /* Journey Goals List */
+    .journey-goals-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .journey-goal-item {
+        background: white;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+        border-left: 3px solid #e9ecef;
+    }
+
+    .goal-header {
+        font-size: 11px;
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .goal-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 6px;
+    }
+
+    .goal-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: #495057;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-dot.at-risk {
+        background: #dc3545;
+    }
+
+    .status-dot.active {
+        background: #28a745;
+    }
+
+    .status-dot.paused {
+        background: #6c757d;
+    }
+
+    .status-dot.consideration {
+        background: #667eea;
+    }
+
+    .status-dot.opportunity {
+        background: #ffc107;
+    }
+
     /* Journey Progress Visualization */
     .journey-progress {
         margin-top: 20px;
@@ -272,36 +338,6 @@
         font-style: italic;
     }
 
-    /* Member Selector */
-    .member-selector {
-        padding: 15px 20px;
-        background: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .member-selector label {
-        font-weight: 600;
-        color: #495057;
-        font-size: 14px;
-    }
-
-    #member-select {
-        flex: 1;
-        padding: 8px 12px;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 14px;
-        outline: none;
-        transition: border-color 0.3s;
-        background: white;
-    }
-
-    #member-select:focus {
-        border-color: #667eea;
-    }
 
     /* Left Panel - Chat */
     #chat-panel {
@@ -451,10 +487,50 @@
 
     .wyzion-analysis {
         background: white;
-        padding: 15px;
         border-radius: 6px;
-        line-height: 1.6;
+        overflow: hidden;
+    }
+
+    .analysis-recommendation {
+        background: #f0f4ff;
+        padding: 12px 15px;
+        border-left: 4px solid #667eea;
+        margin-bottom: 0;
+    }
+
+    .analysis-recommendation-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 6px;
+    }
+
+    .analysis-recommendation-text {
+        font-size: 13px;
+        color: #333;
+        line-height: 1.5;
+    }
+
+    .analysis-explanation {
+        background: white;
+        padding: 12px 15px;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .analysis-explanation-header {
+        font-size: 12px;
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 6px;
+    }
+
+    .analysis-explanation-text {
+        font-size: 13px;
         color: #495057;
+        line-height: 1.5;
     }
 
     .analysis-title {
@@ -598,16 +674,10 @@
 <div class="main-container">
     <!-- Left Panel: Chat -->
     <div class="panel" id="chat-panel">
-        <div class="panel-header">💬 Wyzion AI Assistant</div>
-        <div class="member-selector">
-            <label for="member-select">Select Member:</label>
-            <select id="member-select" onchange="onMemberChange()">
-                <option value="">Loading members...</option>
-            </select>
-        </div>
+        <div class="panel-header">💰 Wyzion Banking AI Assistant</div>
         <div id="chat-messages"></div>
         <div id="input-section">
-            <input type="text" id="question-input" placeholder="Ask me anything about your journey..." />
+            <input type="text" id="question-input" placeholder="Ask me about investments, savings, or account services..." />
             <button class="btn-primary" onclick="sendMessage()">Send</button>
             <button class="btn-secondary" id="record-btn" onclick="toggleRecording()">🎤</button>
         </div>
@@ -626,22 +696,28 @@
                 </div>
             </div>
 
+            <!-- Wyzion's Analysis -->
+            <div class="dossier-section">
+                <div class="section-title">Wyzion's Analysis</div>
+                <div id="wyzion-analysis-content">
+                    <div class="loading">No analysis yet...</div>
+                </div>
+            </div>
+
             <!-- Active Journeys - Intent -->
             <div class="dossier-section">
                 <div class="section-title" id="journey-section-title">Active Journeys</div>
                 <div id="intent-content">
-                    <div class="loading">Select a member to view intent</div>
+                    <div class="loading">Loading journeys...</div>
                 </div>
-                <button class="refresh-btn" onclick="loadIntent()">🔄 Refresh Intent</button>
             </div>
 
-            <!-- Insights - Detailed View with Summary -->
+            <!-- Interaction Chronicle -->
             <div class="dossier-section">
-                <div class="section-title">Insight Detail View</div>
-                <div id="summary-content" class="summary-content">
-                    <div class="loading">No conversation yet...</div>
+                <div class="section-title">Interaction Chronicle</div>
+                <div id="interaction-content">
+                    <div class="loading">No interactions yet...</div>
                 </div>
-                <button class="refresh-btn" onclick="loadSummary()">🔄 Refresh Insights</button>
             </div>
         </div>
     </div>
@@ -651,138 +727,73 @@
 let mediaRecorder;
 let audioChunks = [];
 let recording = false;
-let selectedUserId = null;
-let membersData = [];
+let selectedUserId = 'M001'; // Hardcoded to Rohan
+let currentMember = null;
 
 // Initialize the app
 window.addEventListener('DOMContentLoaded', () => {
-    loadMembers();
+    loadRohanData();
 });
 
-// Load members list
-async function loadMembers() {
-    const memberSelect = document.getElementById('member-select');
-
+// Load Rohan's data
+async function loadRohanData() {
     try {
         const res = await fetch('/get_members');
         const data = await res.json();
 
         if (data.members && data.members.length > 0) {
-            membersData = data.members;
-            memberSelect.innerHTML = '<option value="">-- Select a Member --</option>';
-            data.members.forEach(member => {
-                const option = document.createElement('option');
-                option.value = member.id;
-                option.textContent = `${member.name} - ${member.vertical}`;
-                memberSelect.appendChild(option);
-            });
+            // Find Rohan (M001)
+            currentMember = data.members.find(m => m.id === 'M001');
 
-            // Select first member by default
-            memberSelect.selectedIndex = 1;
-            selectedUserId = data.members[0].id;
-            onMemberChange();
-        } else {
-            memberSelect.innerHTML = '<option value="">No members available</option>';
+            if (currentMember) {
+                updateUserInfoCard(currentMember);
+                updateJourneySectionTitle(currentMember.vertical);
+
+                // Load all data on initial page load
+                loadIntent();
+                loadAnalysis();
+                loadInteractionChronicle();
+            } else {
+                console.error('Rohan (M001) not found in members list');
+            }
         }
     } catch (err) {
-        console.error('Error loading members:', err);
-        memberSelect.innerHTML = '<option value="">Error loading members</option>';
+        console.error('Error loading member data:', err);
     }
 }
 
-// Handle member selection change
-function onMemberChange() {
-    const memberSelect = document.getElementById('member-select');
-    selectedUserId = memberSelect.value;
-
-    if (selectedUserId) {
-        // Update user info card
-        const member = membersData.find(m => m.id === selectedUserId);
-        if (member) {
-            updateUserInfoCard(member);
-            updateJourneySectionTitle(member.vertical);
-        }
-
-        // Clear chat messages
-        document.getElementById('chat-messages').innerHTML = '';
-
-        // Clear previous user's intent and summary
-        document.getElementById('intent-content').innerHTML = '<div class="loading">Loading intent...</div>';
-        document.getElementById('summary-content').innerHTML = '<div class="loading">Loading summary...</div>';
-
-        // Reload intent and summary for new member
-        loadIntent();
-        loadSummary();
-    }
-}
-
-// Update journey section title based on vertical
+// Update journey section title based on vertical (banking focused)
 function updateJourneySectionTitle(vertical) {
     const titles = {
-        'BFSI': 'Active Journeys - Financial Goals',
-        'Healthcare': 'Active Journeys - Wellness Path',
-        'E-commerce': 'Active Journeys - Shopping Journey'
+        'BFSI': 'Active Journeys - Financial Goals'
     };
-    const title = titles[vertical] || 'Active Journeys';
+    const title = titles[vertical] || 'Active Journeys - Financial Goals';
     document.getElementById('journey-section-title').textContent = title;
 }
 
-// Update user info card with member details
+// Update user info card with member details (banking focused)
 function updateUserInfoCard(member) {
     const userInfoCard = document.getElementById('user-info-card');
 
-    // Build vertical-specific details
-    let detailsHTML = '';
-    if (member.vertical === 'BFSI') {
-        detailsHTML = `
-            <div class="user-detail-item">
-                <div class="user-detail-label">Credit Score</div>
-                <div class="user-detail-value">${member.credit_score || 'N/A'}</div>
-            </div>
-            <div class="user-detail-item">
-                <div class="user-detail-label">Transaction Vol.</div>
-                <div class="user-detail-value">$${(member.transaction_volume || 0).toLocaleString()}</div>
-            </div>
-            <div class="user-detail-item">
-                <div class="user-detail-label">Products</div>
-                <div class="user-detail-value">${member.current_products ? member.current_products.length : 0}</div>
-            </div>
-        `;
-    } else if (member.vertical === 'Healthcare') {
-        detailsHTML = `
-            <div class="user-detail-item">
-                <div class="user-detail-label">Visit Frequency</div>
-                <div class="user-detail-value">${escapeHtml(member.visit_frequency || 'N/A')}</div>
-            </div>
-            <div class="user-detail-item">
-                <div class="user-detail-label">Care Products</div>
-                <div class="user-detail-value">${member.current_products ? member.current_products.length : 0}</div>
-            </div>
-            <div class="user-detail-item">
-                <div class="user-detail-label">Risk Level</div>
-                <div class="user-detail-value">${escapeHtml(member.risk_level || 'N/A')}</div>
-            </div>
-        `;
-    } else if (member.vertical === 'E-commerce') {
-        detailsHTML = `
-            <div class="user-detail-item">
-                <div class="user-detail-label">Sessions</div>
-                <div class="user-detail-value">${member.session_count || 0}</div>
-            </div>
-            <div class="user-detail-item">
-                <div class="user-detail-label">Behavior</div>
-                <div class="user-detail-value">${escapeHtml(member.browsing_behavior || 'N/A')}</div>
-            </div>
-            <div class="user-detail-item">
-                <div class="user-detail-label">Risk Level</div>
-                <div class="user-detail-value">${escapeHtml(member.risk_level || 'N/A')}</div>
-            </div>
-        `;
-    }
+    // Build banking-specific details
+    let detailsHTML = `
+        <div class="user-detail-item">
+            <div class="user-detail-label">Credit Score</div>
+            <div class="user-detail-value">${member.credit_score || 'N/A'}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Transaction Vol.</div>
+            <div class="user-detail-value">₹${(member.transaction_volume || 0).toLocaleString()}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Products</div>
+            <div class="user-detail-value">${member.current_products ? member.current_products.length : 0}</div>
+        </div>
+    `;
 
     userInfoCard.innerHTML = `
         <div class="user-name">${escapeHtml(member.name)}</div>
-        <div class="user-id">${escapeHtml(member.vertical)} - ${escapeHtml(member.persona)}</div>
+        <div class="user-id">Banking Member - ${escapeHtml(member.persona)}</div>
         <div class="user-details">
             <div class="user-detail-item">
                 <div class="user-detail-label">Age</div>
@@ -852,9 +863,9 @@ async function sendMessage() {
 
         appendMessage('ai', escapeHtml(data.answer));
 
-        // Automatically refresh intent and summary after conversation
+        // Automatically refresh intent and analysis after conversation
         loadIntent();
-        loadSummary();
+        loadAnalysis();
 
     } catch (err) {
         updateMessage(processingId, `Error: ${escapeHtml(err.message)}`);
@@ -866,7 +877,24 @@ document.getElementById('question-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-// Load user intent/mission
+// Map stage names to status classes
+function getStatusClassForStage(stage) {
+    const stageMap = {
+        // Investment Product Adoption stages
+        'Loyal Member': 'active',
+        'Opportunity Detected': 'opportunity',
+        'Consideration': 'consideration',
+        'Multi-Product Member': 'active',
+        // High-Value Retention stages
+        'Active Member': 'active',
+        'At Risk': 'at-risk',
+        'Re-engagement': 'consideration',
+        'Retained Member': 'active'
+    };
+    return stageMap[stage] || 'paused';
+}
+
+// Load user intent/mission - showing all missions dynamically
 async function loadIntent() {
     if (!selectedUserId) {
         return;
@@ -876,187 +904,154 @@ async function loadIntent() {
     intentContent.innerHTML = '<div class="loading">Loading...</div>';
 
     try {
-        const res = await fetch(`/user_intent?user_id=${encodeURIComponent(selectedUserId)}`);
+        // Fetch dynamic mission statuses from backend
+        const res = await fetch(`/all_mission_statuses?user_id=${encodeURIComponent(selectedUserId)}`);
         const data = await res.json();
 
-        console.log('Intent data received:', data);
+        if (data.missions && data.missions.length > 0) {
+            let goalsHtml = '<ul class="journey-goals-list">';
 
-        // Get member's vertical
-        const member = membersData.find(m => m.id === selectedUserId);
-        const vertical = member ? member.vertical : 'BFSI';
+            data.missions.forEach(mission => {
+                const statusClass = getStatusClassForStage(mission.current_stage);
 
-        if (data.mission_id === 'Unknown') {
-            const noMissionText = getNoMissionText(vertical);
-            intentContent.innerHTML = `
-                <div class="mission-card">
-                    <div class="mission-title">No Active Journey</div>
-                    <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                        ${noMissionText}
-                    </p>
-                </div>
-            `;
+                goalsHtml += `
+                    <li class="journey-goal-item">
+                        <div class="goal-header">Goal:</div>
+                        <div class="goal-title">${escapeHtml(mission.mission_title)}</div>
+                        <div class="goal-status">
+                            <span class="status-dot ${statusClass}"></span>
+                            <span>Status: ${escapeHtml(mission.current_stage)}</span>
+                        </div>
+                    </li>
+                `;
+            });
+
+            goalsHtml += '</ul>';
+            intentContent.innerHTML = goalsHtml;
         } else {
-            // Get mission stages from missions data
-            const stagesHtml = await getMissionStages(data.mission_id, data.stage, vertical);
-
-            // Get vertical-specific styling
-            const verticalStyle = getVerticalStyle(vertical);
-
-            intentContent.innerHTML = `
-                <div class="mission-card" style="border-left-color: ${verticalStyle.color};">
-                    <div class="mission-title" style="color: ${verticalStyle.color};">
-                        ${verticalStyle.icon} ${escapeHtml(data.mission_id)}
-                    </div>
-                    <span class="stage" style="background: ${verticalStyle.color};">${escapeHtml(data.stage)}</span>
-                    <p style="color: #666; font-size: 13px; margin-top: 10px;">
-                        ${escapeHtml(data.explanation)}
-                    </p>
-                    ${stagesHtml}
-                </div>
-            `;
+            intentContent.innerHTML = '<div class="loading">No active journeys found</div>';
         }
+
     } catch (err) {
-        intentContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading intent</div>`;
+        console.error('Error loading intent:', err);
+        intentContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading journeys</div>`;
     }
 }
 
-// Get vertical-specific styling
+// Get vertical-specific styling (banking focused)
 function getVerticalStyle(vertical) {
-    const styles = {
-        'BFSI': { color: '#667eea', icon: '💰' },
-        'Healthcare': { color: '#f56565', icon: '❤️' },
-        'E-commerce': { color: '#9f7aea', icon: '🛍️' }
-    };
-    return styles[vertical] || styles['BFSI'];
+    return { color: '#667eea', icon: '💰' };
 }
 
-// Get no mission text based on vertical
+// Get no mission text (banking focused)
 function getNoMissionText(vertical) {
-    const texts = {
-        'BFSI': 'Start chatting to identify your financial goals!',
-        'Healthcare': 'Start chatting to explore your wellness journey!',
-        'E-commerce': 'Start browsing to discover personalized recommendations!'
-    };
-    return texts[vertical] || texts['BFSI'];
+    return 'Start chatting to identify your financial goals and explore banking services!';
 }
 
-// Get mission stages with current stage highlighted
-async function getMissionStages(missionId, currentStage, vertical) {
-    try {
-        // Fetch stages dynamically from API
-        const res = await fetch(`/get_stages?vertical=${encodeURIComponent(vertical)}`);
-        const data = await res.json();
-        const stages = data.stages || [];
-
-        const verticalStyle = getVerticalStyle(vertical);
-
-        // Find the index of the current stage
-        const currentStageIndex = stages.findIndex(s => s.stage === currentStage);
-
-        // Calculate progress percentage for the connector line
-        const progressPercentage = currentStageIndex >= 0
-            ? ((currentStageIndex / Math.max(stages.length - 1, 1)) * 100)
-            : 0;
-
-        let stagesHtml = '<div class="journey-progress">';
-        stagesHtml += '<div class="journey-progress-title">Journey Progress</div>';
-        stagesHtml += `<ul class="stage-list" style="--progress-percentage: ${progressPercentage}%;">`;
-
-        stages.forEach((stage, index) => {
-            let stageClass = '';
-            let stageStyle = '';
-
-            if (index < currentStageIndex) {
-                // Completed stage
-                stageClass = 'completed';
-            } else if (stage.stage === currentStage) {
-                // Current/Active stage
-                stageClass = 'active';
-                stageStyle = `border-color: ${verticalStyle.color};`;
-            }
-            // Upcoming stages have no special class (default gray styling)
-
-            stagesHtml += `
-                <li class="${stageClass}" style="${stageStyle}">
-                    <span class="stage-emoji">${stage.emoji}</span>
-                    ${escapeHtml(stage.stage)}
-                </li>
-            `;
-        });
-
-        stagesHtml += '</ul>';
-        stagesHtml += '</div>';
-
-        return stagesHtml;
-    } catch (err) {
-        console.error('Error fetching stages:', err);
-        return '<p style="color: #dc3545; font-size: 12px;">Error loading stages</p>';
-    }
-}
-
-// Load conversation summary
-async function loadSummary() {
+// Load Wyzion's Analysis only
+async function loadAnalysis() {
     if (!selectedUserId) {
         return;
     }
 
-    const summaryContent = document.getElementById('summary-content');
-    summaryContent.innerHTML = '<div class="loading">Loading insights...</div>';
+    const analysisContent = document.getElementById('wyzion-analysis-content');
+    analysisContent.innerHTML = '<div class="loading">Loading analysis...</div>';
 
     try {
         const res = await fetch(`/conversation_summary?user_id=${encodeURIComponent(selectedUserId)}`);
         const data = await res.json();
 
         if (data.member_name) {
-            // Build interactions HTML
-            let interactionsHtml = '';
-            if (data.interactions && data.interactions.length > 0) {
-                interactionsHtml = `
-                    <div class="interaction-chronicle">
-                        <div class="chronicle-title">Interaction & Signal Chronicle</div>
-                        ${data.interactions.map(interaction => `
-                            <div class="interaction-item signal-${interaction.signal}">
-                                <div class="interaction-icon">${interaction.icon}</div>
-                                <div class="interaction-content">
-                                    <div class="interaction-header">
-                                        <div class="interaction-title">${escapeHtml(interaction.title)}</div>
-                                        <div class="interaction-timestamp">${escapeHtml(interaction.timestamp)}</div>
-                                    </div>
-                                    <div class="interaction-description">${escapeHtml(interaction.description)}</div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+            // Parse the analysis to extract recommendation and explanation
+            const analysisText = data.analysis || '';
+            let recommendationText = '';
+            let explanationText = '';
+
+            // Try to split the analysis into recommendation and explanation
+            // Look for common patterns
+            if (analysisText.includes('Recommendation:')) {
+                const parts = analysisText.split('Wyzion explains why:');
+                recommendationText = parts[0].replace('Recommendation:', '').trim();
+                explanationText = parts[1] ? parts[1].trim() : '';
+            } else {
+                // If no clear structure, use the first sentence as recommendation
+                const sentences = analysisText.split('.');
+                if (sentences.length > 1) {
+                    recommendationText = sentences[0] + '.';
+                    explanationText = sentences.slice(1).join('.').trim();
+                } else {
+                    recommendationText = analysisText;
+                }
             }
 
-            // Display structured insight view
-            const insightHtml = `
-                <div class="insight-header">
-                    <div class="insight-label">Member</div>
-                    <div class="insight-value">${escapeHtml(data.member_name)}</div>
-                </div>
-                <div class="insight-header">
-                    <div class="insight-label">Lifecycle State</div>
-                    <div class="insight-value">${escapeHtml(data.lifecycle_state)}</div>
-                </div>
+            // Display Wyzion's analysis
+            const analysisHtml = `
                 <div class="wyzion-analysis">
-                    <div class="analysis-title">
-                        <span>⚙️</span>
-                        <span>Wyzion's Analysis</span>
+                    <div class="analysis-recommendation">
+                        <div class="analysis-recommendation-header">
+                            <span>⭐</span>
+                            <span>Recommendation:</span>
+                        </div>
+                        <div class="analysis-recommendation-text">${escapeHtml(recommendationText)}</div>
                     </div>
-                    <p>${escapeHtml(data.analysis)}</p>
+                    ${explanationText ? `
+                    <div class="analysis-explanation">
+                        <div class="analysis-explanation-header">Wyzion explains why:</div>
+                        <div class="analysis-explanation-text">${escapeHtml(explanationText)}</div>
+                    </div>
+                    ` : ''}
                 </div>
-                ${interactionsHtml}
             `;
-            summaryContent.innerHTML = insightHtml;
+            analysisContent.innerHTML = analysisHtml;
         } else {
-            summaryContent.innerHTML = '<div class="loading">No conversation yet...</div>';
+            analysisContent.innerHTML = '<div class="loading">No analysis yet...</div>';
         }
     } catch (err) {
-        console.error('Error loading summary:', err);
-        summaryContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading insights</div>`;
+        console.error('Error loading analysis:', err);
+        analysisContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading analysis</div>`;
     }
+}
+
+// Load Interaction Chronicle only
+async function loadInteractionChronicle() {
+    if (!selectedUserId) {
+        return;
+    }
+
+    const interactionContent = document.getElementById('interaction-content');
+    interactionContent.innerHTML = '<div class="loading">Loading interactions...</div>';
+
+    try {
+        const res = await fetch(`/conversation_summary?user_id=${encodeURIComponent(selectedUserId)}`);
+        const data = await res.json();
+
+        if (data.member_name && data.interactions && data.interactions.length > 0) {
+            const interactionsHtml = data.interactions.map(interaction => `
+                <div class="interaction-item signal-${interaction.signal}">
+                    <div class="interaction-icon">${interaction.icon}</div>
+                    <div class="interaction-content">
+                        <div class="interaction-header">
+                            <div class="interaction-title">${escapeHtml(interaction.title)}</div>
+                            <div class="interaction-timestamp">${escapeHtml(interaction.timestamp)}</div>
+                        </div>
+                        <div class="interaction-description">${escapeHtml(interaction.description)}</div>
+                    </div>
+                </div>
+            `).join('');
+            interactionContent.innerHTML = interactionsHtml;
+        } else {
+            interactionContent.innerHTML = '<div class="loading">No interactions recorded yet...</div>';
+        }
+    } catch (err) {
+        console.error('Error loading interactions:', err);
+        interactionContent.innerHTML = `<div class="loading" style="color: #dc3545;">Error loading interactions</div>`;
+    }
+}
+
+// Load both analysis and interaction chronicle (convenience wrapper)
+async function loadSummary() {
+    await loadAnalysis();
+    await loadInteractionChronicle();
 }
 
 // Voice recording
@@ -1117,9 +1112,9 @@ async function sendAudio(blob) {
         appendMessage('user', `🎤 ${escapeHtml(data.transcript)}`);
         appendMessage('ai', escapeHtml(data.answer));
 
-        // Automatically refresh intent and summary after conversation
+        // Automatically refresh intent and analysis after conversation
         loadIntent();
-        loadSummary();
+        loadAnalysis();
 
     } catch (err) {
         updateMessage(processingId, `Error: ${escapeHtml(err.message)}`);

@@ -110,6 +110,237 @@ Expected AI Response: Celebrates milestone, sets realistic expectations, encoura
 
 ---
 
+### NEGATIVE CASE: High-Value Member at Risk (Retention Mission)
+
+**Scenario Overview:** After becoming a Multi-Product Member, Rohan experiences issues with fees or services, triggering a transition to the "High-Value Retention" mission with "At Risk" status. This tests the system's ability to detect churn signals and respond with retention strategies.
+
+**Mission Switch:** Investment Product Adoption → High-Value Retention
+
+**Journey Stages for Retention Mission:**
+1. Active Member
+2. 🚨 At Risk (Target State)
+3. 🔄 Re-engagement
+4. 💚 Retained Member
+
+---
+
+### NEGATIVE Stage 1: Multi-Product Member → At Risk
+
+**Conversation Scenario N1.1: Fee Concerns**
+```
+User: "I just noticed the account maintenance fees are quite high. Why am I being charged so much?"
+
+Expected AI Response: Acknowledges concern, explains fee structure, shows empathy
+Expected Mission Status: Should detect dissatisfaction signal → High-Value Retention mission becomes priority
+```
+
+**Conversation Scenario N1.2: Competitor Comparison**
+```
+User: "I saw that other banks are offering zero maintenance fees. I'm thinking of switching."
+
+Expected AI Response: Addresses concern proactively, offers retention solutions, emphasizes value
+Expected Mission Status: Should detect churn risk → Stage moves to "At Risk"
+```
+
+**Conversation Scenario N1.3: Service Dissatisfaction**
+```
+User: "The customer service has been really slow lately. I've been on hold for 30 minutes."
+
+Expected AI Response: Apologizes, offers immediate resolution, escalates if needed
+Expected Mission Status: Confirms "At Risk" stage with multiple negative signals
+```
+
+**Conversation Scenario N1.4: Account Reduction Intent**
+```
+User: "I'm considering moving most of my funds to another bank. What do you have to say about that?"
+
+Expected AI Response: Takes churn signal seriously, offers personalized retention package, requests opportunity to make things right
+Expected Mission Status: Priority Mission = "High-Value Retention", Stage = "At Risk"
+```
+
+**Expected Stage Transition:** After 2-3 conversations expressing dissatisfaction, fees complaints, or competitor interest, system should:
+- Switch priority mission to "High-Value Retention"
+- Update stage to "At Risk"
+- Wyzion analysis should show churn probability percentage
+- Recommendation should focus on retention actions (fee waiver, relationship manager call, etc.)
+
+**Interaction Signals to Add:**
+```json
+{
+  "type": "negative_feedback",
+  "signal": "warning",
+  "title": "Multiple Fee Complaints",
+  "description": "Member expressed dissatisfaction with account maintenance fees"
+}
+```
+
+---
+
+### RECOVERY Stage 2: At Risk → Re-engagement
+
+**Conversation Scenario R1.1: Retention Offer Presented**
+```
+User: "What can you do to keep me as a customer? I need a better deal."
+
+Expected AI Response: Presents personalized retention offer (fee waiver, upgraded account benefits, relationship manager assignment)
+Expected Mission Status: Stage should move to "Re-engagement"
+```
+
+**Conversation Scenario R1.2: Addressing Concerns**
+```
+User: "If you waive the fees for 12 months, I'll consider staying."
+
+Expected AI Response: Confirms ability to waive fees, explains value-added services, rebuilds trust
+Expected Mission Status: Confirms "Re-engagement" with positive signal
+```
+
+**Conversation Scenario R1.3: Relationship Building**
+```
+User: "Tell me more about the premium account benefits you mentioned."
+
+Expected AI Response: Details exclusive benefits (priority support, no ATM fees, higher interest rates, dedicated advisor), shows renewed value
+Expected Mission Status: Continues "Re-engagement" with increasing engagement signals
+```
+
+**Expected Stage Transition:** After showing interest in retention offers and responding positively, move to "Re-engagement"
+
+**Interaction Signals to Add:**
+```json
+{
+  "type": "retention_engagement",
+  "signal": "positive",
+  "title": "Retention Offer Accepted",
+  "description": "Member responded positively to fee waiver and premium benefits"
+}
+```
+
+---
+
+### RECOVERY Stage 3: Re-engagement → Retained Member
+
+**Conversation Scenario R2.1: Acceptance of Retention Offer**
+```
+User: "Okay, that sounds fair. Let's upgrade my account to premium with the fee waiver."
+
+Expected AI Response: Celebrates decision, confirms upgrade process, sets expectations for improved experience
+Expected Mission Status: Stage should move toward "Retained Member"
+```
+
+**Conversation Scenario R2.2: Renewed Satisfaction**
+```
+User: "Thanks for working with me on this. I appreciate the effort to keep me as a customer."
+
+Expected AI Response: Thanks member for giving another chance, reinforces commitment to excellent service
+Expected Mission Status: Confirms "Retained Member" status
+```
+
+**Conversation Scenario R2.3: Continued Engagement**
+```
+User: "The premium account is much better. I'm glad I stayed."
+
+Expected AI Response: Celebrates positive feedback, encourages continued engagement, offers additional services
+Expected Mission Status: Solid "Retained Member", may switch back to "Investment Product Adoption" if stable
+```
+
+**Conversation Scenario R2.4: Return to Normal**
+```
+User: "Now that my account is sorted, I'd like to increase my SIP amount to 8000 per month."
+
+Expected AI Response: Acknowledges stability, helps with SIP increase, shows continued investment support
+Expected Mission Status: Should detect return to growth mindset
+Expected Mission Switch: High-Value Retention → Investment Product Adoption (back to normal)
+```
+
+**Expected Stage Transition:** After accepting retention offer and expressing renewed satisfaction:
+- Stage moves to "Retained Member"
+- Churn probability drops significantly in Wyzion analysis
+- Priority mission may switch back to "Investment Product Adoption" if member shows growth signals
+- Recommendation should shift from retention to growth/expansion
+
+**Interaction Signals to Add:**
+```json
+{
+  "type": "retention_success",
+  "signal": "positive",
+  "title": "Premium Account Upgrade Completed",
+  "description": "Member upgraded to premium account with fee waiver, expressing renewed satisfaction"
+}
+```
+
+---
+
+### NEGATIVE CASE TESTING CHECKLIST
+
+**Pre-Test Setup:**
+- [ ] Ensure Rohan (M001) is at "Multi-Product Member" stage in Investment Product Adoption mission
+- [ ] Clear any existing "At Risk" interaction signals
+- [ ] Verify both missions are configured in sample_missions()
+
+**Test Steps:**
+1. [ ] Start negative conversation expressing fee concerns
+2. [ ] Send 2-3 messages expressing dissatisfaction or competitor interest
+3. [ ] Click "🔄 Refresh Intent" after each negative conversation
+4. [ ] Verify mission switches to "High-Value Retention"
+5. [ ] Verify stage shows "At Risk" in journey progress
+6. [ ] Check Wyzion analysis shows "churn probability" percentage
+7. [ ] Verify recommendation includes retention actions (fee waiver, relationship call)
+8. [ ] Start recovery conversation with retention offer discussion
+9. [ ] Send 2-3 messages showing interest in staying/accepting offers
+10. [ ] Click "🔄 Refresh Intent" and verify stage moves to "Re-engagement"
+11. [ ] Send confirmation of accepting retention offer
+12. [ ] Click "🔄 Refresh Intent" and verify stage moves to "Retained Member"
+13. [ ] Send growth-minded message (increase SIP, etc.)
+14. [ ] Click "🔄 Refresh Intent" and verify mission switches back to "Investment Product Adoption"
+
+**Expected System Behavior:**
+- ✅ AI detects negative sentiment from fee complaints and competitor mentions
+- ✅ Priority mission automatically switches from Investment to Retention
+- ✅ Stage progresses: Active Member → At Risk → Re-engagement → Retained Member
+- ✅ Wyzion analysis reflects churn risk with percentage
+- ✅ Recommendations shift from growth to retention and back to growth
+- ✅ Interaction signals panel shows negative → warning → positive signals
+- ✅ Mission switches back to Investment Product Adoption after stability
+
+**Validation Points:**
+- **At Risk Stage:** Wyzion should show "churn probability: 65-75%" and recommend "Schedule retention call" or "Waive account fees"
+- **Re-engagement Stage:** Wyzion should show "churn probability: 35-45%" and recommend "Complete premium upgrade" or "Confirm retention offer"
+- **Retained Member Stage:** Wyzion should show "churn probability: 10-15%" and recommend "Monitor satisfaction" or "Explore growth opportunities"
+- **Return to Normal:** Mission switches back, recommendations focus on investment growth
+
+---
+
+### COMPLETE ROHAN JOURNEY: END-TO-END TEST SCENARIO
+
+**Full Journey Test (30-40 minutes):**
+
+This comprehensive scenario tests the complete journey including positive flow, negative disruption, and recovery.
+
+**Phase 1: Positive Investment Journey (10-15 min)**
+1. Loyal Member → Opportunity Detected (2-3 conversations about savings and investment interest)
+2. Opportunity Detected → Consideration (2-3 conversations about SIP, risks, amounts)
+3. Consideration → Multi-Product Member (1-2 conversations confirming readiness and first investment)
+
+**Phase 2: Negative Disruption - At Risk (5-10 min)**
+4. Multi-Product Member → At Risk (2-3 negative conversations about fees, competitors, dissatisfaction)
+5. Verify mission switch to High-Value Retention
+6. Verify Wyzion shows high churn probability and retention recommendations
+
+**Phase 3: Recovery - Re-engagement (5-10 min)**
+7. At Risk → Re-engagement (2-3 conversations showing interest in retention offers)
+8. Verify stage progression and engagement signals
+
+**Phase 4: Full Recovery - Return to Normal (5-10 min)**
+9. Re-engagement → Retained Member (1-2 conversations accepting offers and expressing satisfaction)
+10. Retained Member → Back to Investment Growth (1-2 conversations showing growth mindset)
+11. Verify mission switches back to Investment Product Adoption
+12. Verify recommendations shift from retention to growth
+
+**Expected Total Conversations:** 15-20 messages
+**Expected Mission Switches:** 2 (Investment → Retention → Investment)
+**Expected Stage Transitions:** 7 stages total
+
+---
+
 ## Member 2: Mr. Sharma (M002) - Healthcare Vertical
 
 **Current Profile:**
